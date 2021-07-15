@@ -3610,8 +3610,9 @@ int DLGpuDropoutForward(const DLArrayHandle input,
         stateSizeInBytes,
         seed);
      if(err == CUDNN_STATUS_EXECUTION_FAILED){\
-       // printf("出错了");
-        *memorytoSaving = 100*1048576;
+         //printf("出错了");
+        *memorytoSaving = 100*1e6;
+
           cudaFree(states);
           cudaFree(*reserveSpace_p);
           return 0;
@@ -3621,7 +3622,7 @@ int DLGpuDropoutForward(const DLArrayHandle input,
             std::cout << "    Error occurred: " << err << std::endl; \
             std::exit(1); \
     } \
-    //printf("正确了");
+   // printf("正确了");
    // printf("%d,err",err);
     //printf("after\n");
 
@@ -4937,7 +4938,7 @@ void profileCopies(float        *h_a,
                    int        *in,
                    int        *out)
 {
-  printf("\n%s transfers\n", desc);
+  //printf("\n%s transfers\n", desc);
 
   unsigned int bytes = n * sizeof(float);
 
@@ -4954,7 +4955,7 @@ void profileCopies(float        *h_a,
 
   float time;
   checkCuda( cudaEventElapsedTime(&time, startEvent, stopEvent) );
-  printf("  Host to Device bandwidth (GB/s): %f\n", bytes * 1e-6 / time);
+  //printf("  Host to Device bandwidth (GB/s): %f\n", bytes * 1e-6 / time);
   *in=(int)(bytes / time);
   checkCuda( cudaEventRecord(startEvent, 0) );
   checkCuda( cudaMemcpy(h_b, d, bytes, cudaMemcpyDeviceToHost) );
@@ -4962,7 +4963,7 @@ void profileCopies(float        *h_a,
   checkCuda( cudaEventSynchronize(stopEvent) );
 
   checkCuda( cudaEventElapsedTime(&time, startEvent, stopEvent) );
-  printf("  Device to Host bandwidth (GB/s): %f\n", bytes * 1e-6 / time);
+  //printf("  Device to Host bandwidth (GB/s): %f\n", bytes * 1e-6 / time);
   *out=(int)(bytes / time);
 
   for (int i = 0; i < n; ++i) {
@@ -5005,14 +5006,14 @@ int testPcie(int *in,int *out)
   cudaDeviceProp prop;
   checkCuda( cudaGetDeviceProperties(&prop, 0) );
 
-  printf("\nDevice: %s\n", prop.name);
-  printf("Transfer size (MB): %d\n", bytes / (1024 * 1024));
+  //printf("\nDevice: %s\n", prop.name);
+  //printf("Transfer size (MB): %d\n", bytes / (1024 * 1024));
 
   // perform copies and report bandwidth
   profileCopies(h_aPageable, h_bPageable, d_a, nElements, "Pageable",in,out);
   profileCopies(h_aPinned, h_bPinned, d_a, nElements, "Pinned",in,out);
 
-  printf("\n");
+ // printf("\n");
 
   // cleanup
   cudaFree(d_a);
