@@ -196,6 +196,7 @@ class TrainExecutor(object):
 
             #把结果输出了： [loss,变量按网络顺序],这里只是输出value，并不保证一定在gpu中
             #但是如果这里value是None的话，他会报错
+
             result_output = [self.node_to_arr_map[self.targetloss]]
             re_var = []
             for node in self.Variable_node_list:
@@ -205,12 +206,11 @@ class TrainExecutor(object):
             #结果，计算正确率
             if Accuracy_node !=None:
                 result_output.append(self.node_to_arr_map[Accuracy_node])
-
             #adam更新参数
             self.b1t[0] = self.b1t[0] * self.b1
             self.b2t[0] = self.b2t[0] * self.b2
 
-            return result_output
+            return []
 
 
 
@@ -219,7 +219,6 @@ class TrainExecutor(object):
             # 存已经被计算过的node
             node_computed = set()
             # 开始运行
-
             for i in range(len(self.topo_order)):
                 node = self.topo_order[i]
                 self.node_order.append("index:" + str(i) + "\t" + node.name + "\ttime:" + str(datetime.datetime.now()))
@@ -302,6 +301,7 @@ class TrainExecutor(object):
 
             # 把结果输出了： [loss,变量按网络顺序],这里只是输出value，并不保证一定在gpu中
             # 但是如果这里value是None的话，他会报错
+
             result_output = [self.node_to_arr_map[self.targetloss]]
             re_var = []
             for node in self.Variable_node_list:
@@ -311,11 +311,10 @@ class TrainExecutor(object):
             # 结果，计算正确率
             if Accuracy_node != None:
                 result_output.append(self.node_to_arr_map[Accuracy_node])
-
             # adam更新参数
             self.b1t[0] = self.b1t[0] * self.b1
             self.b2t[0] = self.b2t[0] * self.b2
-            return result_output
+            return []
 
     def get_start_finish_time(self):
         return self.start_finish_time

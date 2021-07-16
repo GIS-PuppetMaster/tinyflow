@@ -349,6 +349,7 @@ class TrainExecutor(object):
 
         else:
             node_computed = set()
+            time1=time.time()
             for idx in range(len(self.topo_order)):
                 node = self.topo_order[idx]
                  # 已经被计算过了
@@ -469,6 +470,7 @@ class TrainExecutor(object):
                             self.arrive_to_cpu(dnode)
                 # 此点被计算过了
                 node_computed.add(node)
+            print(time.time()-time1)
             self.b1t[0] = self.b1t[0] * self.b1
             self.b2t[0] = self.b2t[0] * self.b2
 
