@@ -19,19 +19,15 @@ class capuchin:
         self.prior_policy = [0]*len(self.tensor_access_list)
         self.swap = [-1]*len(self.tensor_access_list)
         self.end_time=0
-        self.reflushtime=0
     def add_tensor_access_info(self, tensor_id, access_count, timestamp):
         self.tensor_access_list.append((tensor_id,access_count,timestamp))
 
     def reflush(self,reflush_access):
         for id in reflush_access:
-            if self.policy[id]!=2:
-                print("error1")
-            if self.swap[id]==-1:
-                print("error2")
             instart_id=id-1
-            instart_time=self.tensor_access_list[id][2]-self.reflushtime
-            flag=True
+            swap_node_id=self.swap[id]
+            reflushtime=0.05*(self.topo_order[swap_node_id].swapintime)
+            instart_time=self.tensor_access_list[id][2]-reflushtime
             while True:
                 if self.policy[instart_id] == 0:
                     instart_id -= 1
@@ -39,20 +35,19 @@ class capuchin:
                         instart_id+=1
                         break
                 else:
-                    flag=False
+                    instart_id+=1
                     break
                 if self.tensor_access_list[instart_id][2] <= instart_time and self.policy[instart_id] == 0:
                     break
-            if flag:
+            if instart_id!=id:
                 self.policy[instart_id]=2
-                self.swap[instart_id]=self.swap[id]
+                self.swap[instart_id]=swap_node_id
                 self.swap[id]=-1
                 for i in range(instart_id+1,id+1):
                     self.policy[i]=4
 
 
-    def hybrid_policy(self,memory_tosaving,end_time,reflushtime):
-        self.reflushtime=reflushtime
+    def hybrid_policy(self,memory_tosaving,end_time):
         self.policy = [0] * len(self.tensor_access_list)
         self.prior_policy = [0] * len(self.tensor_access_list)
         self.swap = [-1] * len(self.tensor_access_list)

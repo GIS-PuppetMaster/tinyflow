@@ -210,7 +210,6 @@ class TrainExecutor(object):
             self.start_finish_time = datetime.datetime.now()
             self.node_order.append("topo_order:")
             self.node_order.append("\nrun:")
-            starttime=time.time()
             # 开始运行
             for idx in range(len(self.topo_order)):
 
@@ -330,8 +329,7 @@ class TrainExecutor(object):
                     out_id = node.use_access_id[node.access_count - 1]
                     outtime = self.capu.tensor_access_list[out_id][2]
                     node.FT.append(endtime - (outtime + node.swapouttime))
-            reflushtime=0.05*(endtime-starttime)
-            self.capu.hybrid_policy(need_tomem, endtime,reflushtime)
+            self.capu.hybrid_policy(need_tomem, endtime)
 
             # print(self.capu.policy)
             # print(self.capu.swap)
@@ -606,6 +604,7 @@ class TrainExecutor(object):
 
                 if memorytoSaving == 0:
                     break
+
                 dnode = self.topo_order[i]
                 if self.isevict(dnode, node):
                     self.tensor_evict(dnode)
