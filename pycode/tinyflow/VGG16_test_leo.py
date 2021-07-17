@@ -166,10 +166,14 @@ class VGG16():
         X_val = np.random.normal(loc=0, scale=0.1, size=(
             self.batch_size, self.image_channel, self.image_size, self.image_size))  # number = batch_size  channel = 3  image_size = 224*224
         y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
-        self.feed_dict[self.X] = ndarray.array(X_val, ctx=executor_ctx)
-        self.feed_dict[self.y_] = ndarray.array(y_val, ctx=executor_ctx)
         self.feed_dict.update(feed_dict_mv)
-        self.executor.init_operator_latency(feed_dict_sample=self.feed_dict)
+        if 'predict_results' not in kwargs.keys():
+            self.feed_dict[self.X] = ndarray.array(X_val, ctx=executor_ctx)
+            self.feed_dict[self.y_] = ndarray.array(y_val, ctx=executor_ctx)
+            self.executor.init_operator_latency(feed_dict_sample=self.feed_dict)
+        else:
+            self.executor.predict_results = kwargs['predict_results']
+        return self.executor.predict_results
 
     def run_without_init(self, X_val, y_val, **kwargs):
         gpu_record = GPURecord(self.log_path)
@@ -204,7 +208,7 @@ class VGG16():
         return 0
 
     def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, **kwargs):
-        self.init_model(executor_ctx, n_class, top_control_queue, top_message_queue)
+        self.init_model(executor_ctx, n_class, top_control_queue, top_message_queue, **kwargs)
         return self.run_without_init(X_val, y_val)
 
 
