@@ -41,8 +41,8 @@ def run_model(log_path, model: list, top_control_queue_list, top_message_queue_l
         top_message_queue_list.append(top_message_queue)
         inited_model.append(m(num_step=num_step, batch_size=batch_size, log_path=log_path, job_id=job_id))
     job_pool = [Process(target=m.run,
-                        args=(ndarray.gpu(0), top_control_queue_list, top_message_queue_list, 1000, np.random.normal(loc=0, scale=0.1, size=(m.batch_size, m.image_channel, m.image_size, m.image_size)),
-                              np.random.normal(loc=0, scale=0.1, size=(m.batch_size, 1000))), kwargs=kwargs) for m in inited_model]
+                        args=(ndarray.gpu(0), top_control_queue_list[i], top_message_queue_list[i], 1000, np.random.normal(loc=0, scale=0.1, size=(m.batch_size, m.image_channel, m.image_size, m.image_size)),
+                              np.random.normal(loc=0, scale=0.1, size=(m.batch_size, 1000))), kwargs=kwargs) for i, m in enumerate(inited_model)]
     for job in job_pool:
         job.start()
     if 'schedule' in log_path:
@@ -98,6 +98,7 @@ if __name__ == '__main__':
         executor_ctx = ndarray.cpu(0)
         predict_results = [get_predict_results(executor_ctx, 2, 50, log_path, top_control_queue_list, top_message_queue_list, job_id, model_list[int(random_index_map[job_id])]) for job_id in
                            range(len(model_list))]
+        # predict_results = [{}]
         recorder.start()
         start_time = time.time()
         run_model(log_path, model_list, top_control_queue_list, top_message_queue_list, 50, 2, predict_results=predict_results)

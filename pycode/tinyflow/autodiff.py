@@ -2236,7 +2236,7 @@ def nodelist_to_name(nodelist):
 class Executor(object):
     """Executor computes values for given set of nodes in computation graph."""
 
-    def __init__(self, targetloss, y, learning_rate, top_control_queue, top_message_queue, log_path, internal_info_queue=None):
+    def __init__(self, targetloss, y, learning_rate, top_control_queue, top_message_queue, log_path, internal_info_queue=None, **kwargs):
         """
         Parameters
         ----------
