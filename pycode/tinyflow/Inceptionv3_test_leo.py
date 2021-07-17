@@ -1,8 +1,7 @@
-GPU = 1
 import os
-import sys
-
+GPU = 0
 os.environ['CUDA_VISIBLE_DEVICES'] = f'{GPU}'
+import sys
 sys.path.append('../../')
 from pycode.tinyflow import autodiff as ad
 from pycode.tinyflow.log.get_result import get_result
@@ -11,9 +10,7 @@ from util import *
 
 class Inceptionv3():
 
-    def __init__(self, num_step, batch_size, gpu_num, log_path, job_id):
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_num)
-        self.gpu_num = gpu_num
+    def __init__(self, num_step, batch_size, log_path, job_id):
         self.dropout_rate = 0.5
         self.image_channel = 3
         self.image_size = 299
@@ -21,17 +18,28 @@ class Inceptionv3():
         self.batch_size = batch_size
         self.job_id = job_id
         self.log_path = log_path
+        self.executor_ctx = None
+        self.X = None
+        self.y_ = None
+        self.executor = None
+        self.feed_dict = None
+        self.n_class = None
         self.ad = ad
+        self.top_control_queue = None
+        self.top_message_queue = None
 
     def conv2dplusrelu(self, node, filter, model, type, stride_h, stride_w):
         node_new = self.ad.convolution_2d_forward_op(node, filter, model, type, stride_h, stride_w)
         node_after = self.ad.activation_forward_op(node_new, model, "relu")
         return node_after
 
-    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val):
-        gpu_record = GPURecord(self.log_path)
-        X = self.ad.Placeholder("inputs")
-        y_ = self.ad.Placeholder("y_")
+    def init_model(self, executor_ctx, n_class, top_control_queue, top_message_queue, **kwargs):
+        self.n_class = n_class
+        self.top_control_queue = top_control_queue
+        self.top_message_queue = top_message_queue
+        self.executor_ctx = executor_ctx
+        self.X = self.ad.Placeholder("X")
+        self.y_ = self.ad.Placeholder("y_")
         filterb_1 = self.ad.Variable("filterb_1")
         filterb_2 = self.ad.Variable("filterb_2")
         filterb_3 = self.ad.Variable("filterb_3")
@@ -45,7 +53,7 @@ class Inceptionv3():
         filtersb_val5 = ndarray.array(np.random.normal(0, 0.5, (192, 80, 3, 3)), executor_ctx)
 
         # inception前
-        covb_1 = self.conv2dplusrelu(X, filterb_1, "NCHW", "VALID", 2, 2)
+        covb_1 = self.conv2dplusrelu(self.X, filterb_1, "NCHW", "VALID", 2, 2)
         covb_2 = self.conv2dplusrelu(covb_1, filterb_2, "NCHW", "VALID", 1, 1)
         covb_3 = self.conv2dplusrelu(covb_2, filterb_3, "NCHW", "SAME", 1, 1)
         poolb = self.ad.pooling_2d_forward_op(covb_3, "NCHW", "max", 0, 0, 2, 2, 3, 3)
@@ -487,80 +495,89 @@ class Inceptionv3():
 
         dense = self.ad.dense(squeeze, W, b)
         y = self.ad.fullyactivation_forward_op(dense, "NCHW", "softmax")
-        loss = self.ad.crossEntropy_loss(y, y_)
+        loss = self.ad.crossEntropy_loss(y, self.y_)
         # fc8
 
-        executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue,
-                                    top_message_queue=top_message_queue, log_path=self.log_path)
+        self.executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue,
+                                         top_message_queue=top_message_queue, log_path=self.log_path, **kwargs)
 
-        feed_dict = {filterb_1: filtersb_val1, filterb_2: filtersb_val2, filterb_3: filtersb_val3
+        self.feed_dict = {filterb_1: filtersb_val1, filterb_2: filtersb_val2, filterb_3: filtersb_val3
             , filterb_4: filtersb_val4, filterb_5: filtersb_val5,
-                     filter1_1_0: filter1_1_0_val, filter1_1_1a: filter1_1_1_vala, filter1_1_1b: filter1_1_1_valb, filter1_1_2a: filter1_1_2_vala, filter1_1_2b: filter1_1_2_valb
+                          filter1_1_0: filter1_1_0_val, filter1_1_1a: filter1_1_1_vala, filter1_1_1b: filter1_1_1_valb, filter1_1_2a: filter1_1_2_vala, filter1_1_2b: filter1_1_2_valb
             , filter1_1_2c: filter1_1_2_valc, filter1_1_3: filter1_1_3_val
             , filter1_2_0: filter1_2_0_val, filter1_2_1a: filter1_2_1_vala,
-                     filter1_2_1b: filter1_2_1_valb, filter1_2_2a: filter1_2_2_vala,
-                     filter1_2_2b: filter1_2_2_valb, filter1_2_2c: filter1_2_2_valc, filter1_2_3: filter1_2_3_val
+                          filter1_2_1b: filter1_2_1_valb, filter1_2_2a: filter1_2_2_vala,
+                          filter1_2_2b: filter1_2_2_valb, filter1_2_2c: filter1_2_2_valc, filter1_2_3: filter1_2_3_val
 
             , filter1_3_0: filter1_3_0_val, filter1_3_1a: filter1_3_1_vala,
-                     filter1_3_1b: filter1_3_1_valb, filter1_3_2a: filter1_3_2_vala,
-                     filter1_3_2b: filter1_3_2_valb, filter1_3_2c: filter1_3_2_valc,
-                     filter1_3_3: filter1_3_3_val
+                          filter1_3_1b: filter1_3_1_valb, filter1_3_2a: filter1_3_2_vala,
+                          filter1_3_2b: filter1_3_2_valb, filter1_3_2c: filter1_3_2_valc,
+                          filter1_3_3: filter1_3_3_val
             , filter2_1_0: filter2_1_0_val, filter2_1_1a: filter2_1_1_vala, filter2_1_1b: filter2_1_1_valb, filter2_1_1c: filter2_1_1_valc
 
             , filter2_2_0: filter2_2_0_val, filter2_2_1a: filter2_2_1_vala, filter2_2_1b: filter2_2_1_valb, filter2_2_1c: filter2_2_1_valc,
-                     filter2_2_2a: filter2_2_2_vala, filter2_2_2b: filter2_2_2_valb, filter2_2_2c: filter2_2_2_valc, filter2_2_2d: filter2_2_2_vald, filter2_2_2e: filter2_2_2_vale, filter2_2_3: filter2_2_3_val
+                          filter2_2_2a: filter2_2_2_vala, filter2_2_2b: filter2_2_2_valb, filter2_2_2c: filter2_2_2_valc, filter2_2_2d: filter2_2_2_vald, filter2_2_2e: filter2_2_2_vale,
+                          filter2_2_3: filter2_2_3_val
 
             , filter2_3_0: filter2_3_0_val, filter2_3_1a: filter2_3_1_vala, filter2_3_1b: filter2_3_1_valb,
-                     filter2_3_1c: filter2_3_1_valc,
-                     filter2_3_2a: filter2_3_2_vala, filter2_3_2b: filter2_3_2_valb,
-                     filter2_3_2c: filter2_3_2_valc, filter2_3_2d: filter2_3_2_vald,
-                     filter2_3_2e: filter2_3_2_vale, filter2_3_3: filter2_3_3_val
+                          filter2_3_1c: filter2_3_1_valc,
+                          filter2_3_2a: filter2_3_2_vala, filter2_3_2b: filter2_3_2_valb,
+                          filter2_3_2c: filter2_3_2_valc, filter2_3_2d: filter2_3_2_vald,
+                          filter2_3_2e: filter2_3_2_vale, filter2_3_3: filter2_3_3_val
             , filter2_4_0: filter2_4_0_val, filter2_4_1a: filter2_4_1_vala, filter2_4_1b: filter2_4_1_valb,
-                     filter2_4_1c: filter2_4_1_valc,
-                     filter2_4_2a: filter2_4_2_vala, filter2_4_2b: filter2_4_2_valb,
-                     filter2_4_2c: filter2_4_2_valc, filter2_4_2d: filter2_4_2_vald,
-                     filter2_4_2e: filter2_4_2_vale, filter2_4_3: filter2_4_3_val
+                          filter2_4_1c: filter2_4_1_valc,
+                          filter2_4_2a: filter2_4_2_vala, filter2_4_2b: filter2_4_2_valb,
+                          filter2_4_2c: filter2_4_2_valc, filter2_4_2d: filter2_4_2_vald,
+                          filter2_4_2e: filter2_4_2_vale, filter2_4_3: filter2_4_3_val
             , filter2_5_0: filter2_5_0_val, filter2_5_1a: filter2_5_1_vala, filter2_5_1b: filter2_5_1_valb,
-                     filter2_5_1c: filter2_5_1_valc,
-                     filter2_5_2a: filter2_5_2_vala, filter2_5_2b: filter2_5_2_valb,
-                     filter2_5_2c: filter2_5_2_valc, filter2_5_2d: filter2_5_2_vald,
-                     filter2_5_2e: filter2_5_2_vale, filter2_5_3: filter2_5_3_val
+                          filter2_5_1c: filter2_5_1_valc,
+                          filter2_5_2a: filter2_5_2_vala, filter2_5_2b: filter2_5_2_valb,
+                          filter2_5_2c: filter2_5_2_valc, filter2_5_2d: filter2_5_2_vald,
+                          filter2_5_2e: filter2_5_2_vale, filter2_5_3: filter2_5_3_val
             , filter3_1_0a: filter3_1_0_vala, filter3_1_0b: filter3_1_0_valb, filter3_1_1a: filter3_1_1_vala, filter3_1_1b: filter3_1_1_valb,
-                     filter3_1_1c: filter3_1_1_valc, filter3_1_1d: filter3_1_1_vald
+                          filter3_1_1c: filter3_1_1_valc, filter3_1_1d: filter3_1_1_vald
             , filter3_2_0: filter3_2_0_val, filter3_2_1a: filter3_2_1_vala,
-                     filter3_2_1b: filter3_2_1_valb,
-                     filter3_2_1c: filter3_2_1_valc, filter3_2_2a: filter3_2_2_vala, filter3_2_2b: filter3_2_2_valb,
-                     filter3_2_2c: filter3_2_2_valc, filter3_2_2d: filter3_2_2_vald, filter3_2_3: filter3_2_3_val
+                          filter3_2_1b: filter3_2_1_valb,
+                          filter3_2_1c: filter3_2_1_valc, filter3_2_2a: filter3_2_2_vala, filter3_2_2b: filter3_2_2_valb,
+                          filter3_2_2c: filter3_2_2_valc, filter3_2_2d: filter3_2_2_vald, filter3_2_3: filter3_2_3_val
             , filter3_3_0: filter3_3_0_val, filter3_3_1a: filter3_3_1_vala,
-                     filter3_3_1b: filter3_3_1_valb,
-                     filter3_3_1c: filter3_3_1_valc, filter3_3_2a: filter3_3_2_vala,
-                     filter3_3_2b: filter3_3_2_valb,
-                     filter3_3_2c: filter3_3_2_valc, filter3_3_2d: filter3_3_2_vald,
-                     filter3_3_3: filter3_3_3_val
+                          filter3_3_1b: filter3_3_1_valb,
+                          filter3_3_1c: filter3_3_1_valc, filter3_3_2a: filter3_3_2_vala,
+                          filter3_3_2b: filter3_3_2_valb,
+                          filter3_3_2c: filter3_3_2_valc, filter3_3_2d: filter3_3_2_vald,
+                          filter3_3_3: filter3_3_3_val
             , filtera1: filtera1val, W: W_val, b: b_val}
 
         feed_dict_mv = {}
-        for key, value in feed_dict.items():
+        for key, value in self.feed_dict.items():
             print(key)
-            m_key = executor.Variable_node_to_mv[key][0]
+            m_key = self.executor.Variable_node_to_mv[key][0]
             m_val = ndarray.array(np.zeros(shape=value.shape), executor_ctx)
-            v_key = executor.Variable_node_to_mv[key][1]
+            v_key = self.executor.Variable_node_to_mv[key][1]
             v_val = ndarray.array(np.zeros(shape=value.shape), executor_ctx)
             feed_dict_mv.update({m_key: m_val, v_key: v_val})
+        X_val = np.random.normal(loc=0, scale=0.1, size=(
+            self.batch_size, self.image_channel, self.image_size, self.image_size))  # number = batch_size  channel = 3  image_size = 224*224
+        y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))
+        self.feed_dict.update(feed_dict_mv)
+        self.feed_dict[self.X] = ndarray.array(X_val, ctx=executor_ctx)
+        self.feed_dict[self.y_] = ndarray.array(y_val, ctx=executor_ctx)
+        self.executor.init_operator_latency(feed_dict_sample=self.feed_dict)
 
-        feed_dict.update(feed_dict_mv)
+    def run_without_init(self, X_val, y_val, **kwargs):
+        gpu_record = GPURecord(self.log_path)
         if self.job_id == 0:
             f1 = open(f"{self.log_path}/gpu_time.txt", "w+")
         for i in range(self.num_step):
             print("step", i)
-            if self.job_id == 0 and i==29:
+            if self.job_id == 0 and i == 29:
                 gpu_record.start()
                 start_time = time.time()
-            feed_dict[X] = ndarray.array(X_val, ctx=executor_ctx)
-            feed_dict[y_] = ndarray.array(y_val, ctx=executor_ctx)
-            res = executor.run(feed_dict=feed_dict)
+            self.feed_dict[self.X] = ndarray.array(X_val, ctx=self.executor_ctx)
+            self.feed_dict[self.y_] = ndarray.array(y_val, ctx=self.executor_ctx)
+            res = self.executor.run(feed_dict=self.feed_dict)
             loss_val = res[0]
-            feed_dict = res[1]
+            self.feed_dict = res[1]
         if self.job_id == 0:
             gpu_record.stop()
             f1.write(f'time_cost:{time.time() - start_time}')
@@ -569,32 +586,35 @@ class Inceptionv3():
         print(loss_val)
 
         print("success")
-        if not top_message_queue.empty():
-            top_message_queue.get()
-        if not top_control_queue.empty():
-            top_control_queue.get()
-        top_message_queue.close()
-        top_control_queue.close()
-        top_control_queue.join_thread()
-        top_message_queue.join_thread()
+        if not self.top_message_queue.empty():
+            self.top_message_queue.get()
+        if not self.top_control_queue.empty():
+            self.top_control_queue.get()
+        self.top_message_queue.close()
+        self.top_control_queue.close()
+        self.top_control_queue.join_thread()
+        self.top_message_queue.join_thread()
         return 0
 
+    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, **kwargs):
+        self.init_model(executor_ctx, n_class, top_control_queue, top_message_queue)
+        return self.run_without_init(X_val, y_val)
 
-def run_exp(workloads):
-    # workloads = [['./log/Inception V3 fixed x2/', 3, 3, 2]]
+
+def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
     for path, repeat, jobs_num, batch_size in workloads:
         raw_path = path
         for i in range(2):
-            if i == 0:
+            if i == 0 and skip != 'schedule':
                 path = raw_path + 'schedule'
-                schedule = True
                 print(path)
-            else:
+                main(path, repeat, jobs_num, batch_size, Inceptionv3, **kwargs)
+            elif skip != 'vanilla':
                 path = raw_path + 'vanilla'
-                schedule = False
                 print(path)
-            main(path, repeat, jobs_num, batch_size, GPU, Inceptionv3)
-        get_result(raw_path, repeat)
+                main(path, repeat, jobs_num, batch_size, Inceptionv3, **kwargs)
+        if analysis_result:
+            get_result(raw_path, repeat)
 
 
 if __name__ == '__main__':

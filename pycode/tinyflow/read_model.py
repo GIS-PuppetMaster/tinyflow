@@ -10,10 +10,6 @@ from keras.layers import Dense, Conv1D, MaxPool1D, Dropout, Flatten
 from matplotlib import cm
 from tensorboard.plugins.hparams import keras
 
-from pycode.tinyflow.util import load_gpu
-
-GPU = load_gpu()
-os.environ['CUDA_VISIBLE_DEVICES'] = f'{GPU}'
 
 
 def create_model(n):

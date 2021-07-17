@@ -1,8 +1,7 @@
-GPU = 1
 import os
-import sys
-
+GPU = 0
 os.environ['CUDA_VISIBLE_DEVICES'] = f'{GPU}'
+import sys
 sys.path.append('../../')
 from pycode.tinyflow import autodiff as ad
 from pycode.tinyflow.log.get_result import get_result
@@ -10,10 +9,7 @@ from util import *
 
 
 class Inceptionv4():
-    def __init__(self, num_step, batch_size, gpu_num, log_path, job_id):
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_num)
-        self.gpu_num = gpu_num
-
+    def __init__(self, num_step, batch_size, log_path, job_id):
         self.dropout_rate = 0.5
         self.image_channel = 3
         self.image_size = 299
@@ -21,7 +17,15 @@ class Inceptionv4():
         self.batch_size = batch_size
         self.job_id = job_id
         self.log_path = log_path
+        self.executor_ctx = None
+        self.X = None
+        self.y_ = None
+        self.executor = None
+        self.feed_dict = None
+        self.n_class = None
         self.ad = ad
+        self.top_control_queue = None
+        self.top_message_queue = None
 
     def conv2dplusrelu(self, node, filter, model, type, stride_h, stride_w):
         node_new = self.ad.convolution_2d_forward_op(node, filter, model, type, stride_h, stride_w)
@@ -219,11 +223,13 @@ class Inceptionv4():
                 filter3_2_2c: filter3_2_2_valc, filter3_2_2d: filter3_2_2_vald, filter3_2_2e: filter3_2_2_vale, filter3_2_3: filter3_2_3_val}
         return concat3_2, dict
 
-    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val):
-        gpu_record = GPURecord(self.log_path)
-        start_time = datetime.datetime.now()
-        X = self.ad.Placeholder("X")
-        Y_ = self.ad.Placeholder("y_")
+    def init_model(self, executor_ctx, n_class, top_control_queue, top_message_queue, **kwargs):
+        self.n_class = n_class
+        self.top_control_queue = top_control_queue
+        self.top_message_queue = top_message_queue
+        self.executor_ctx = executor_ctx
+        self.X = self.ad.Placeholder("X")
+        self.y_ = self.ad.Placeholder("y_")
         f1 = self.ad.Variable("f1")
         f2 = self.ad.Variable("f2")
         f3 = self.ad.Variable("f3")
@@ -252,7 +258,7 @@ class Inceptionv4():
         W_val = ndarray.array(np.random.normal(0, 0.5, (1536, n_class)), executor_ctx)
         b_val = ndarray.array(np.random.normal(0, 0.5, (n_class)), executor_ctx)
         # stem
-        cov1 = self.conv2dplusrelu(X, f1, "NCHW", "VALID", 2, 2)
+        cov1 = self.conv2dplusrelu(self.X, f1, "NCHW", "VALID", 2, 2)
         cov2 = self.conv2dplusrelu(cov1, f2, "NCHW", "VALID", 1, 1)
         cov3 = self.conv2dplusrelu(cov2, f3, "NCHW", "SAME", 1, 1)
         pool4 = self.ad.pooling_2d_forward_op(cov3, "NCHW", "max", 0, 0, 2, 2, 3, 3)
@@ -291,49 +297,59 @@ class Inceptionv4():
         drop_out = self.ad.fullydropout_forward_op(squeeze, "NCHW", 0.8)
         dense = self.ad.dense(drop_out, W, b)
         y = self.ad.fullyactivation_forward_op(dense, "NCHW", "softmax")
-        loss = self.ad.crossEntropy_loss(y, Y_)
-        executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue,
-                                    top_message_queue=top_message_queue, log_path=self.log_path)
+        loss = self.ad.crossEntropy_loss(y, self.y_)
+        self.executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue,
+                                         top_message_queue=top_message_queue, log_path=self.log_path, **kwargs)
 
-        feed_dict = {f1: f1val, f2: f2val, f3: f3val, f4: f4val, f5_1: f5_1val, f5_2: f5_2val, f6_1: f6_1val, f6_2: f6_2val, f6_3: f6_3val, f6_4: f6_4val, f7: f7val, W: W_val, b: b_val}
-        feed_dict.update(dicta1)
-        feed_dict.update(dicta2)
-        feed_dict.update(dicta3)
-        feed_dict.update(dicta4)
-        feed_dict.update(dictra)
-        feed_dict.update(dictb1)
-        feed_dict.update(dictb2)
-        feed_dict.update(dictb3)
-        feed_dict.update(dictb4)
-        feed_dict.update(dictb5)
-        feed_dict.update(dictb6)
-        feed_dict.update(dictb7)
-        feed_dict.update(dictrb)
-        feed_dict.update(dictc1)
-        feed_dict.update(dictc2)
-        feed_dict.update(dictc3)
+        self.feed_dict = {f1: f1val, f2: f2val, f3: f3val, f4: f4val, f5_1: f5_1val, f5_2: f5_2val, f6_1: f6_1val, f6_2: f6_2val, f6_3: f6_3val, f6_4: f6_4val, f7: f7val, W: W_val, b: b_val}
+        self.feed_dict.update(dicta1)
+        self.feed_dict.update(dicta2)
+        self.feed_dict.update(dicta3)
+        self.feed_dict.update(dicta4)
+        self.feed_dict.update(dictra)
+        self.feed_dict.update(dictb1)
+        self.feed_dict.update(dictb2)
+        self.feed_dict.update(dictb3)
+        self.feed_dict.update(dictb4)
+        self.feed_dict.update(dictb5)
+        self.feed_dict.update(dictb6)
+        self.feed_dict.update(dictb7)
+        self.feed_dict.update(dictrb)
+        self.feed_dict.update(dictc1)
+        self.feed_dict.update(dictc2)
+        self.feed_dict.update(dictc3)
 
         feed_dict_mv = {}
-        for key, value in feed_dict.items():
-            m_key = executor.Variable_node_to_mv[key][0]
+        for key, value in self.feed_dict.items():
+            m_key = self.executor.Variable_node_to_mv[key][0]
             m_val = ndarray.array(np.zeros(shape=value.shape), executor_ctx)
-            v_key = executor.Variable_node_to_mv[key][1]
+            v_key = self.executor.Variable_node_to_mv[key][1]
             v_val = ndarray.array(np.zeros(shape=value.shape), executor_ctx)
             feed_dict_mv.update({m_key: m_val, v_key: v_val})
 
-        feed_dict.update(feed_dict_mv)
+        self.feed_dict.update(feed_dict_mv)
+        X_val = np.random.normal(loc=0, scale=0.1, size=(
+            self.batch_size, self.image_channel, self.image_size, self.image_size))  # number = batch_size  channel = 3  image_size = 224*224
+        y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
+        self.feed_dict[self.X] = ndarray.array(X_val, ctx=executor_ctx)
+        self.feed_dict[self.y_] = ndarray.array(y_val, ctx=executor_ctx)
+        self.executor.init_operator_latency(feed_dict_sample=self.feed_dict)
+
+    def run_without_init(self, X_val, y_val, **kwargs):
+        gpu_record = GPURecord(self.log_path)
+        start_time = datetime.datetime.now()
         if self.job_id == 0:
             f1 = open(f"{self.log_path}/gpu_time.txt", "w+")
         for i in range(self.num_step):
             print("step", i)
-            if self.job_id == 0 and i==29:
+            if self.job_id == 0 and i == 29:
                 gpu_record.start()
                 start_time = time.time()
-            feed_dict[X] = ndarray.array(X_val, ctx=executor_ctx)
-            feed_dict[Y_] = ndarray.array(y_val, ctx=executor_ctx)
-            res = executor.run(feed_dict=feed_dict)
+            self.feed_dict[self.X] = ndarray.array(X_val, ctx=self.executor_ctx)
+            self.feed_dict[self.y_] = ndarray.array(y_val, ctx=self.executor_ctx)
+            res = self.executor.run(feed_dict=self.feed_dict)
             loss_val = res[0]
-            feed_dict = res[1]
+            self.feed_dict = res[1]
         if self.job_id == 0:
             gpu_record.stop()
             f1.write(f'time_cost:{time.time() - start_time}')
@@ -342,32 +358,35 @@ class Inceptionv4():
         print(loss_val)
 
         print("success")
-        if not top_message_queue.empty():
-            top_message_queue.get()
-        if not top_control_queue.empty():
-            top_control_queue.get()
-        top_message_queue.close()
-        top_control_queue.close()
-        top_control_queue.join_thread()
-        top_message_queue.join_thread()
+        if not self.top_message_queue.empty():
+            self.top_message_queue.get()
+        if not self.top_control_queue.empty():
+            self.top_control_queue.get()
+        self.top_message_queue.close()
+        self.top_control_queue.close()
+        self.top_control_queue.join_thread()
+        self.top_message_queue.join_thread()
         return 0
 
+    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, **kwargs):
+        self.init_model(executor_ctx, n_class, top_control_queue, top_message_queue)
+        return self.run_without_init(X_val, y_val)
 
-def run_exp(workloads):
-    # workloads = [['./log/Inception V4 fixed x3/', 3, 3, 2]]
+
+def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
     for path, repeat, jobs_num, batch_size in workloads:
         raw_path = path
         for i in range(2):
-            if i == 0:
+            if i == 0 and skip != 'schedule':
                 path = raw_path + 'schedule'
-                schedule = True
                 print(path)
-            else:
+                main(path, repeat, jobs_num, batch_size, Inceptionv4, **kwargs)
+            elif skip != 'vanilla':
                 path = raw_path + 'vanilla'
-                schedule = False
                 print(path)
-            main(path, repeat, jobs_num, batch_size, GPU, Inceptionv4)
-        get_result(raw_path, repeat)
+                main(path, repeat, jobs_num, batch_size, Inceptionv4, **kwargs)
+        if analysis_result:
+            get_result(raw_path, repeat)
 
 
 if __name__ == '__main__':

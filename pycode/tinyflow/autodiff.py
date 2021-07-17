@@ -37,6 +37,7 @@ class MemoryManagerController(threading.Thread):
         self.cpu_ctx = ndarray.cpu(0)
         self.gpu_ctx = ndarray.gpu(0)
         self.memoryManager = MemoryManager(self.will_do_queue, self.have_done_queue)
+        self.memoryManager.setDaemon(True)
         self.memoryManager.start()
 
     def run(self):
@@ -1459,7 +1460,6 @@ class FullyActivationForwardOp(Op):
 
         gpu_op.activation_forward(input_vals[0], output_val, node.activationMode, node.cudnnlist[0], cudnnHandle, cudaStream)
 
-
         # print("fullyactivation_end")
         return 0
 
@@ -2053,8 +2053,8 @@ class AdamOp(Op):
         new_node.name = "AdamOp"
         new_node.b1 = b1
         new_node.b2 = b2
-        new_node.b1t = b1t #list
-        new_node.b2t = b2t #list
+        new_node.b1t = b1t  # list
+        new_node.b2t = b2t  # list
         new_node.e = e
         new_node.learning_rate = learning_rate
         return new_node
@@ -2236,7 +2236,7 @@ def nodelist_to_name(nodelist):
 class Executor(object):
     """Executor computes values for given set of nodes in computation graph."""
 
-    def __init__(self, targetloss, y, learning_rate, top_control_queue, top_message_queue, log_path):
+    def __init__(self, targetloss, y, learning_rate, top_control_queue, top_message_queue, log_path, internal_info_queue=None):
         """
         Parameters
         ----------
@@ -2265,7 +2265,7 @@ class Executor(object):
                                                                                 self.Variable_node_grad_list, self.b1,
                                                                                 self.b2, self.b1t, self.b2t, self.e,
                                                                                 self.learning_rate)  # 其内存还是Variable，但是换了个点
-
+        self.predict_results = {}
         # 根据这个topo_order算
         self.topo_order = find_topo_sort(self.eval_node_list)
         self.topo_order = swapadam(self.topo_order)
@@ -2289,11 +2289,13 @@ class Executor(object):
         self.feed_shapes = None
         self.top_control_queue = top_control_queue
         self.top_message_queue = top_message_queue
+        self.internal_info_queue = internal_info_queue
         self.control_queue = queue.Queue()
         self.have_done_queue = queue.Queue()
         self.will_do_queue = queue.Queue()
         self.memoryManagerController = MemoryManagerController(self.control_queue, self.will_do_queue,
                                                                self.have_done_queue)
+        self.memoryManagerController.setDaemon(True)
         self.memoryManagerController.start()
 
         self.cudaStream = gpu_op.create_cudaStream()
@@ -2355,6 +2357,51 @@ class Executor(object):
         #     self.node_to_arr_map[node] = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx_cpu)
 
         assert False
+
+    def init_operator_latency(self, feed_dict_sample):
+        if 'schedule' in self.log_path:
+            global index_to_gpu_map
+            global index_to_cpu_map
+            global index_to_cpu_flag
+            index_to_gpu_map = {}
+            index_to_cpu_flag = {}
+            feed_shapes = {}
+            swap_finish_event.clear()
+
+            for node, value in feed_dict_sample.items():
+                if ndarray.is_gpu_ctx(value.ctx):
+                    index_to_gpu_map[node.index] = value
+                    feed_shapes[node] = value.shape
+                else:
+                    index_to_gpu_map[node.index] = None
+                    index_to_cpu_flag[node.index] = True
+                    index_to_cpu_map[node.index] = value
+                    feed_shapes[node] = value.shape
+                if node.name == "X" or node.name == "y_":
+                    continue
+                else:
+                    index_to_gpu_map[node.index + self.total_node] = None
+                    index_to_cpu_flag[node.index + self.total_node] = False
+                    index_to_cpu_map[node.index + self.total_node] = ndarray.empty(value.shape, self.ctx_cpu)
+
+            if self.feed_shapes is None:
+                self.infer_shape(feed_shapes)
+                if 'schedule' in self.log_path:
+                    # s_ = time.time()
+                    for node in self.topo_order:
+                        if node.index not in index_to_gpu_map:
+                            # print(node.index)
+                            input_shape = []
+                            for input_node in node.inputs:
+                                input_shape.append(self.node_to_shape_map[input_node])
+                            operation_run_time = gettime(node, input_shape)
+                            if operation_run_time - 0.0 < 1e-10:
+                                operation_run_time = 1e-5
+                            self.predict_results[node] = operation_run_time
+                    # e_ = time.time()
+                    # prediction_time_cost = e_ - s_
+                    # if self.internal_info_queue is not None:
+                    #     self.internal_info_queue.put((s_, e_, prediction_time_cost))
 
     def run(self, feed_dict, convert_to_numpy_ret_vals=False):
         """
@@ -2423,38 +2470,19 @@ class Executor(object):
             if 'schedule' in self.log_path:
                 return_list = []
                 for node in self.topo_order:
-
-                    operation_run_time = 1e-5
-
-                    # todo 初始化时进行初始运行时间的预测
                     if node.index not in index_to_gpu_map:
                         # print(node.index)
                         input_shape = []
                         for input_node in node.inputs:
                             input_shape.append(self.node_to_shape_map[input_node])
-                        # print(node.name)
-                        # temp = getinputsofmodel(node, input_shape)
-                        operation_run_time = gettime(node, input_shape)
-                        if operation_run_time - 0.0 < 1e-10:
-                            operation_run_time = 1e-5
-
-
-                        # try:
-                        #     operation_run_time = gettime(node, input_shape)
-                        # except:
-                        #     print("NOT FOUND")
-                        # print(operation_run_time)
-
+                    if node in self.predict_results.keys():
+                        operation_run_time = self.predict_results[node]
+                    else:
+                        operation_run_time = 1e-5
                     node_inputs = []
                     for node_input in node.inputs:
                         node_inputs.append(node_input.index)
                     node_size = np.prod(self.node_to_shape_map[node]) * 4
-                    # print("node" + str(node.index) + " size: " + str(node_size))
-
-                    # if len(self.node_to_shape_map[node]) == 1:
-                    #     node_size = self.node_to_shape_map[node][0] * 4
-                    # else:
-                    #     node_size = self.node_to_shape_map[node][0] * self.node_to_shape_map[node][1] * 4
                     operation_name = node.name
                     is_input = 0
                     if node.index in index_to_gpu_map:
@@ -2595,9 +2623,6 @@ class Executor(object):
         time_old = datetime.datetime.now()
 
         # Traverse graph in topo order and compute values for all nodes.
-
-
-
 
         for node in self.topo_order:
 
@@ -2837,7 +2862,6 @@ class Executor(object):
                 swap_finish_event.wait()
         # print("同步完成")
         swap_out_onetime_num = 0
-
 
         n = self.eval_node_list[0]
         assert not index_to_gpu_map[n.index] is None

@@ -11,8 +11,11 @@ from keras.layers import Dense, Conv1D, MaxPool1D, Dropout, Flatten
 from matplotlib import cm
 from tensorboard.plugins.hparams import keras
 import numpy as np
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
+# 第几块gpu
+inited = False
+handle = None
 load_list = ['convolution_2d_forward_VALID', 'convolution_backward_filter_2d_VALID',
              'convolution_backward_data_2d_VALID',
              'convolution_2d_forward_SAME', 'convolution_backward_filter_2d_SAME', 'convolution_backward_data_2d_SAME',
@@ -138,7 +141,7 @@ def getinputsofmodel(node, inputsshape):
             inputsofmodel = [inputsshape[0][0], inputsshape[0][1], inputsshape[0][2]]
         if node.activationMode == "softmax":
             opname = 'activation_forward_softmax'
-            inputsofmodel = [inputsshape[0][0], inputsshape[0][1]*inputsshape[0][2]]
+            inputsofmodel = [inputsshape[0][0], inputsshape[0][1] * inputsshape[0][2]]
     if node.name == "FullyActivationForward":
         if node.activationMode == "relu":
             opname = 'activation_forward_relu'
@@ -152,7 +155,7 @@ def getinputsofmodel(node, inputsshape):
             inputsofmodel = [inputsshape[0][0], inputsshape[0][1], inputsshape[0][2]]
         if node.activationMode == "softmax":
             opname = 'activation_backward_softmax'
-            inputsofmodel = [inputsshape[0][0], inputsshape[0][1]*inputsshape[0][2]]
+            inputsofmodel = [inputsshape[0][0], inputsshape[0][1] * inputsshape[0][2]]
     if node.name == "FullyActivationBackward":
         if node.activationMode == "relu":
             opname = 'activation_backward_relu'
@@ -228,14 +231,15 @@ def load(opname, n):
     return model
 
 
-# 第几块gpu
-i = int(os.environ['CUDA_VISIBLE_DEVICES'])
-print("Now on GPU" + str(i))
-nvmlInit()
-handle = nvmlDeviceGetHandleByIndex(i)
-
-
 def gettime(node, inputsshape):
+    global inited
+    global handle
+    if not inited:
+        i = int(os.environ['CUDA_VISIBLE_DEVICES'])
+        print("Now on GPU" + str(i))
+        nvmlInit()
+        handle = nvmlDeviceGetHandleByIndex(i)
+        inited = True
     tmp = nvmlDeviceGetUtilizationRates(handle)
     tmp = float(tmp.gpu)
     list = getinputsofmodel(node, inputsshape)

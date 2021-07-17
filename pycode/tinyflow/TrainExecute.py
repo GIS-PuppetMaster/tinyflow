@@ -5,9 +5,7 @@ from . import ndarray, gpu_op, memoryManager
 import random
 import queue
 from . import autodiff as ad
-import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 

@@ -18,8 +18,7 @@ import time
 from tools import *
 from agetinputsofmodel import *
 import read_model
-GPU = load_gpu()
-os.environ['CUDA_VISIBLE_DEVICES'] = f'{GPU}'
+
 
 
 def test1():

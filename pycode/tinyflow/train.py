@@ -4,7 +4,6 @@ import numpy as np
 from . import autodiff as ad
 from . import ndarray, gpu_op
 import time
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 class GradientDescent_minimize(object):
 

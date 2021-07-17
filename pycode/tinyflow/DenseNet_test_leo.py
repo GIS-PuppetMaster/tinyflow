@@ -1,7 +1,7 @@
-GPU = 1
 import os
-import sys
+GPU = 0
 os.environ['CUDA_VISIBLE_DEVICES'] = f'{GPU}'
+import sys
 sys.path.append('../../')
 from pycode.tinyflow import autodiff as ad
 from pycode.tinyflow.log.get_result import get_result
@@ -9,10 +9,7 @@ from util import *
 
 
 class DenseNet121():
-    def __init__(self, num_step, batch_size, gpu_num, log_path, job_id):
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_num)
-        self.gpu_num = gpu_num
-
+    def __init__(self, num_step, batch_size, log_path, job_id):
         self.n_filter = 32  # growth rate
         self.image_channel = 3
         self.image_size = 224
@@ -21,7 +18,15 @@ class DenseNet121():
         self.batch_size = batch_size
         self.log_path = log_path
         self.job_id = job_id
+        self.executor_ctx = None
+        self.X = None
+        self.y_ = None
+        self.executor = None
+        self.feed_dict = None
+        self.n_class = None
         self.ad = ad
+        self.top_control_queue = None
+        self.top_message_queue = None
 
     def bottleneck_layer(self, inputs, in_filter, layer_name, executor_ctx):
 
@@ -70,15 +75,18 @@ class DenseNet121():
         dict = {W1: W1_val}
         return pool0, dict, int(0.5 * in_filter)
 
-    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val):
-        gpu_record = GPURecord(self.log_path)
-        X = self.ad.Placeholder("X")
-        y_ = self.ad.Placeholder("y_")
+    def init_model(self, executor_ctx, n_class, top_control_queue, top_message_queue, **kwargs):
+        self.n_class = n_class
+        self.top_control_queue = top_control_queue
+        self.top_message_queue = top_message_queue
+        self.executor_ctx = executor_ctx
+        self.X = self.ad.Placeholder("X")
+        self.y_ = self.ad.Placeholder("y_")
         W0 = self.ad.Variable("W0")
         W1 = self.ad.Variable("W1")
         b1 = self.ad.Variable("b1")
 
-        conv0 = self.ad.convolution_2d_forward_op(X, W0, "NCHW", "SAME", 2, 2)  # stride=2
+        conv0 = self.ad.convolution_2d_forward_op(self.X, W0, "NCHW", "SAME", 2, 2)  # stride=2
         pool0 = self.ad.pooling_2d_forward_op(conv0, "NCHW", "max", 1, 1, 2, 2, 3, 3)  # stride=2   pool_size=3*3
 
         dense_1, dict_1, out_filter1 = self.dense_block(inputs=pool0, in_filter=2 * self.n_filter, nb_layers=6, block_name="dense1", executor_ctx=executor_ctx)
@@ -100,45 +108,55 @@ class DenseNet121():
         dense = self.ad.dense(flat, W1, b1)
         y = self.ad.fullyactivation_forward_op(dense, "NCHW", "softmax")
 
-        loss = self.ad.crossEntropy_loss(y, y_)
+        loss = self.ad.crossEntropy_loss(y, self.y_)
 
         W0_val = ndarray.array(np.random.normal(loc=0, scale=0.1, size=(2 * self.n_filter, self.image_channel, 7, 7)), executor_ctx)  # n_filter   n_channel=3   kernel_size=7*7
         W1_val = ndarray.array(np.random.normal(loc=0, scale=0.1, size=(out_filter7, n_class)), executor_ctx)
         b1_val = ndarray.array(np.random.normal(loc=0, scale=0.1, size=(n_class)), executor_ctx)
 
-        executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue,
-                                    top_message_queue=top_message_queue, log_path=self.log_path)
+        self.executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue,
+                                         top_message_queue=top_message_queue, log_path=self.log_path, **kwargs)
 
-        feed_dict = {W0: W0_val, W1: W1_val, b1: b1_val}
-        feed_dict.update(dict_1)
-        feed_dict.update(dict_2)
-        feed_dict.update(dict_3)
-        feed_dict.update(dict_4)
-        feed_dict.update(dict_5)
-        feed_dict.update(dict_6)
-        feed_dict.update(dict_7)
+        self.feed_dict = {W0: W0_val, W1: W1_val, b1: b1_val}
+        self.feed_dict.update(dict_1)
+        self.feed_dict.update(dict_2)
+        self.feed_dict.update(dict_3)
+        self.feed_dict.update(dict_4)
+        self.feed_dict.update(dict_5)
+        self.feed_dict.update(dict_6)
+        self.feed_dict.update(dict_7)
 
         feed_dict_mv = {}
-        for key, value in feed_dict.items():
-            m_key = executor.Variable_node_to_mv[key][0]
+        for key, value in self.feed_dict.items():
+            m_key = self.executor.Variable_node_to_mv[key][0]
             m_val = ndarray.array(np.zeros(shape=value.shape), executor_ctx)
-            v_key = executor.Variable_node_to_mv[key][1]
+            v_key = self.executor.Variable_node_to_mv[key][1]
             v_val = ndarray.array(np.zeros(shape=value.shape), executor_ctx)
             feed_dict_mv.update({m_key: m_val, v_key: v_val})
 
-        feed_dict.update(feed_dict_mv)
+        self.feed_dict.update(feed_dict_mv)
+        X_val = np.random.normal(loc=0, scale=0.1, size=(
+            self.batch_size, self.image_channel, self.image_size, self.image_size))  # number = batch_size  channel = 3  image_size = 224*224
+        y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
+        self.feed_dict[self.X] = ndarray.array(X_val, ctx=executor_ctx)
+        self.feed_dict[self.y_] = ndarray.array(y_val, ctx=executor_ctx)
+        self.executor.init_operator_latency(feed_dict_sample=self.feed_dict)
+
+    def run_without_init(self, X_val, y_val, **kwargs):
+        gpu_record = GPURecord(self.log_path)
+
         if self.job_id == 0:
             f1 = open(f"{self.log_path}/gpu_time.txt", "w+")
         for i in range(self.num_step):
             print("step", i)
-            if self.job_id == 0 and i==29:
+            if self.job_id == 0 and i == 29:
                 gpu_record.start()
                 start_time = time.time()
-            feed_dict[X] = ndarray.array(X_val, ctx=executor_ctx)
-            feed_dict[y_] = ndarray.array(y_val, ctx=executor_ctx)
-            res = executor.run(feed_dict=feed_dict)
+            self.feed_dict[self.X] = ndarray.array(X_val, ctx=self.executor_ctx)
+            self.feed_dict[self.y_] = ndarray.array(y_val, ctx=self.executor_ctx)
+            res = self.executor.run(feed_dict=self.feed_dict)
             loss_val = res[0]
-            feed_dict = res[1]
+            self.feed_dict = res[1]
         if self.job_id == 0:
             gpu_record.stop()
             f1.write(f'time_cost:{time.time() - start_time}')
@@ -147,25 +165,32 @@ class DenseNet121():
         print(loss_val)
 
         print("success")
-        if not top_message_queue.empty():
-            top_message_queue.get()
-        if not top_control_queue.empty():
-            top_control_queue.get()
-        top_message_queue.close()
-        top_control_queue.close()
-        top_control_queue.join_thread()
-        top_message_queue.join_thread()
+        if not self.top_message_queue.empty():
+            self.top_message_queue.get()
+        if not self.top_control_queue.empty():
+            self.top_control_queue.get()
+        self.top_message_queue.close()
+        self.top_control_queue.close()
+        self.top_control_queue.join_thread()
+        self.top_message_queue.join_thread()
         return 0
 
-def run_exp(workloads):
+    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, **kwargs):
+        self.init_model(executor_ctx, n_class, top_control_queue, top_message_queue)
+        return self.run_without_init(X_val, y_val)
+
+
+def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
     for path, repeat, jobs_num, batch_size in workloads:
         raw_path = path
         for i in range(2):
-            if i == 0:
+            if i == 0 and skip != 'schedule':
                 path = raw_path + 'schedule'
                 print(path)
-            else:
+                main(path, repeat, jobs_num, batch_size, DenseNet121, **kwargs)
+            elif skip != 'vanilla':
                 path = raw_path + 'vanilla'
                 print(path)
-            main(path, repeat, jobs_num, batch_size, GPU, DenseNet121)
-        get_result(raw_path, repeat)
+                main(path, repeat, jobs_num, batch_size, DenseNet121, **kwargs)
+        if analysis_result:
+            get_result(raw_path, repeat)

@@ -16,8 +16,6 @@ import threading
 import time
 
 from tools import *
-GPU = load_gpu()
-os.environ['CUDA_VISIBLE_DEVICES'] = f'{GPU}'
 
 def load_mnist_data(dataset):
     # 加载mnist数据集

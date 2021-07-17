@@ -198,44 +198,8 @@ def load(opname, n):
     return model
 
 
-def load_all_model():
-    global models
-    global load_list
-    old_gpu = os.environ["CUDA_VISIBLE_DEVICES"]
-    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-    for op_name in load_list:
-        scaler = []
-        with open('../../data_bn/' + op_name + '_mean_and_std.txt', mode='r') as f:
-            content = f.readlines()
-            for c in content:
-                c = c.strip()
-                c = c.split(' ')
-                scaler.append([float(c[0]), float(c[1])])
-            model = load(op_name, len(scaler) + 1)
-        models[op_name] = (scaler, model)
-    os.environ["CUDA_VISIBLE_DEVICES"] = old_gpu
-
-
 def get_predicted_execution_time(op_name, inputs_of_model, logged_time: list):
     return logged_time[0]
-
-    # global models
-    # old_gpu = os.environ["CUDA_VISIBLE_DEVICES"]
-    # os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
-    # # 使用CPU进行推理
-    # gpu_usage = nvmlDeviceGetUtilizationRates(handle).gpu
-    # inputs_of_model.append(gpu_usage)
-    # scaler, model = models[op_name]
-    # assert len(inputs_of_model) == len(scaler)
-    # for i, mean, std in enumerate(scaler):
-    #     inputs_of_model[i] = (inputs_of_model[i] - mean) / std
-    # predicted_time = model.predict(inputs_of_model)
-    # if len(logged_time) > 0:
-    #     predicted_time = [predicted_time]
-    #     predicted_time.extend(logged_time)
-    #     predicted_time = numpy_ewma_vectorized(np.array(predicted_time), 3)
-    # os.environ["CUDA_VISIBLE_DEVICES"] = old_gpu
-    # return predicted_time
 
 
 def liveness_analysis(tensor_access_list):
@@ -708,7 +672,6 @@ def init(logged_times: list, gpu: int):
     graphs = global_graphs
     jobs_weights = [weight for _ in range(len(graphs))]
     tensor_access_by_tensor = [[] for _ in range(job_num)]
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
     # 获取当前剩余显存总量
     if not debug_mod:
         nvmlInit()

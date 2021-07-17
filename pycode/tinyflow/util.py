@@ -51,25 +51,24 @@ class GPURecord(threading.Thread):
         self.f.close()
 
 
-def run_workload(GPU, batch_size, num_step, log_path, top_control_queue_list, top_message_queue_list, job_id, executor_ctx, model):
+def run_workload(batch_size, num_step, log_path, top_control_queue_list, top_message_queue_list, job_id, executor_ctx, model, **kwargs):
     top_control_queue = multiprocessing.Queue()
     top_control_queue_list.append(top_control_queue)
     top_message_queue = multiprocessing.Queue()
     top_message_queue_list.append(top_message_queue)
 
-    gpu_num = GPU
-    model = model(num_step=num_step, batch_size=batch_size, gpu_num=gpu_num, log_path=log_path, job_id=job_id)
+    model = model(num_step=num_step, batch_size=batch_size, log_path=log_path, job_id=job_id)
     X_val = np.random.normal(loc=0, scale=0.1, size=(
         batch_size, model.image_channel, model.image_size, model.image_size))  # number = batch_size  channel = 3  image_size = 224*224
 
     y_val = np.random.normal(loc=0, scale=0.1, size=(batch_size, 1000))  # n_class = 1000
 
     p = Process(target=model.run,
-                args=(executor_ctx, top_control_queue, top_message_queue, 1000, X_val, y_val))
+                args=(executor_ctx, top_control_queue, top_message_queue, 1000, X_val, y_val), kwargs=kwargs)
     return p
 
 
-def main(raw_log_path, repeat_times, job_number, batch_size, GPU, model):
+def main(raw_log_path, repeat_times, job_number, batch_size, model, **kwargs):
     for t in range(repeat_times):
         print(f'repeat_time:{t}')
         global_message_queue = multiprocessing.Queue()
@@ -85,7 +84,7 @@ def main(raw_log_path, repeat_times, job_number, batch_size, GPU, model):
             os.makedirs(log_path)
 
         num_step = 50
-        job_pool = [run_workload(GPU, batch_size, num_step, log_path, top_control_queue_list, top_message_queue_list, job_id, executor_ctx, model) for job_id in range(job_number)]
+        job_pool = [run_workload(batch_size, num_step, log_path, top_control_queue_list, top_message_queue_list, job_id, executor_ctx, model, **kwargs) for job_id in range(job_number)]
         for job in job_pool:
             job.start()
 
