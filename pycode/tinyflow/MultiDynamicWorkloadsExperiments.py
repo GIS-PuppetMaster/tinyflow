@@ -86,13 +86,9 @@ if __name__ == '__main__':
         top_message_queue_list = []
         model_list = [VGG16, Inceptionv3, Inceptionv4, ResNet50, DenseNet121]
         np.random.shuffle(model_list)
-        res = []
-        for m in model_list:
-            res.append(predict_results[m.__name__])
-        # predict_results = [{}]
         recorder.start()
         start_time = time.time()
-        run_model(log_path, model_list, top_control_queue_list, top_message_queue_list, 50, 2, predict_results=res)
+        run_model(log_path, model_list, top_control_queue_list, top_message_queue_list, 50, 2, predict_results=predict_results)
         f1.write(f'time_cost:{time.time() - start_time}')
         f1.flush()
         f1.close()
@@ -109,9 +105,6 @@ if __name__ == '__main__':
         model_list = [VGG16, Inceptionv3, Inceptionv4, ResNet50, DenseNet121]
         np.random.shuffle(model_list)
         res = []
-        # for m in model_list:
-        #     res.append(predict_results[m.__name__])
-        # predict_results = [{}]
         recorder.start()
         start_time = time.time()
         run_model(log_path, model_list, top_control_queue_list, top_message_queue_list, 50, 2, predict_results=predict_results)
