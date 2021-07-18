@@ -1,8 +1,7 @@
 import os
 
-from tensorflow.python.eager import executor
-
 os.environ['CUDA_VISIBLE_DEVICES'] = f'{0}'
+import pickle as pkl
 import multiprocessing
 import time
 import numpy as np
@@ -16,15 +15,6 @@ from pycode.tinyflow import Scheduler as mp
 from pycode.tinyflow import ndarray
 from pycode.tinyflow.log.get_result import get_result
 from util import GPURecord
-
-
-def get_predict_results(executor_ctx, batch_size, num_step, log_path, top_control_queue_list, top_message_queue_list, job_id, model, **kwargs):
-    top_control_queue = multiprocessing.Queue()
-    # top_control_queue_list.append(top_control_queue)
-    top_message_queue = multiprocessing.Queue()
-    # top_message_queue_list.append(top_message_queue)
-    m = model(num_step=num_step, batch_size=batch_size, log_path=log_path, job_id=job_id)
-    return m.init_model(executor_ctx, 1000, top_control_queue, top_message_queue)
 
 
 def run_model(log_path, model: list, top_control_queue_list, top_message_queue_list, num_step, batch_size, **kwargs):
@@ -42,7 +32,7 @@ def run_model(log_path, model: list, top_control_queue_list, top_message_queue_l
         inited_model.append(m(num_step=num_step, batch_size=batch_size, log_path=log_path, job_id=job_id))
     job_pool = [Process(target=m.run,
                         args=(ndarray.gpu(0), top_control_queue_list[i], top_message_queue_list[i], 1000, np.random.normal(loc=0, scale=0.1, size=(m.batch_size, m.image_channel, m.image_size, m.image_size)),
-                              np.random.normal(loc=0, scale=0.1, size=(m.batch_size, 1000))), kwargs=kwargs) for i, m in enumerate(inited_model)]
+                              np.random.normal(loc=0, scale=0.1, size=(m.batch_size, 1000))), kwargs=dict(predict_results=kwargs['predict_results'][m.__class__.__name__])) for i, m in enumerate(inited_model)]
     for job in job_pool:
         job.start()
     if 'schedule' in log_path:
@@ -82,6 +72,8 @@ def run_model(log_path, model: list, top_control_queue_list, top_message_queue_l
 
 
 if __name__ == '__main__':
+    with open(f'../../res/inferred_shape.pkl', 'rb') as f:
+        predict_results = pkl.load(f)
     for t in range(3):
         log_path = f'./log/MDW/repeat_{t}/vanilla'
         if not os.path.exists(log_path):
@@ -93,15 +85,14 @@ if __name__ == '__main__':
         top_control_queue_list = []
         top_message_queue_list = []
         model_list = [VGG16, Inceptionv3, Inceptionv4, ResNet50, DenseNet121]
-        model_list = model_list[:1]
-        random_index_map = np.random.randint(0, len(model_list), size=len(model_list))
-        executor_ctx = ndarray.cpu(0)
-        predict_results = [get_predict_results(executor_ctx, 2, 50, log_path, top_control_queue_list, top_message_queue_list, job_id, model_list[int(random_index_map[job_id])]) for job_id in
-                           range(len(model_list))]
+        np.random.shuffle(model_list)
+        res = []
+        for m in model_list:
+            res.append(predict_results[m.__name__])
         # predict_results = [{}]
         recorder.start()
         start_time = time.time()
-        run_model(log_path, model_list, top_control_queue_list, top_message_queue_list, 50, 2, predict_results=predict_results)
+        run_model(log_path, model_list, top_control_queue_list, top_message_queue_list, 50, 2, predict_results=res)
         f1.write(f'time_cost:{time.time() - start_time}')
         f1.flush()
         f1.close()
@@ -116,11 +107,11 @@ if __name__ == '__main__':
         top_control_queue_list = []
         top_message_queue_list = []
         model_list = [VGG16, Inceptionv3, Inceptionv4, ResNet50, DenseNet121]
-        model_list = model_list[:1]
-        random_index_map = np.random.randint(0, len(model_list), size=len(model_list))
-        executor_ctx = ndarray.cpu(0)
-        predict_results = [get_predict_results(executor_ctx, 2, 50, log_path, top_control_queue_list, top_message_queue_list, job_id, model_list[int(random_index_map[job_id])]) for job_id in
-                           range(len(model_list))]
+        np.random.shuffle(model_list)
+        res = []
+        # for m in model_list:
+        #     res.append(predict_results[m.__name__])
+        # predict_results = [{}]
         recorder.start()
         start_time = time.time()
         run_model(log_path, model_list, top_control_queue_list, top_message_queue_list, 50, 2, predict_results=predict_results)
@@ -128,8 +119,4 @@ if __name__ == '__main__':
         f1.flush()
         f1.close()
         recorder.stop()
-        end_time = time.time()
-        f1.write(f'time_cost:{end_time - start_time}')
-        f1.flush()
-        f1.close()
     get_result(raw_workload='./log/MDW/', repeat_times=3)

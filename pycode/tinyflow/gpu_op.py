@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import ctypes
 from ._base import _LIB,c_array
 from . import ndarray as _nd
-
+from pycode.tinyflow.ndarray import NDArray
 
 def create_cudaStream():
     cudaStream = ctypes.c_int(0)

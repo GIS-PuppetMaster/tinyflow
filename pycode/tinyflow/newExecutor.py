@@ -168,7 +168,7 @@ class Executor(object):
         """Given shapes of feed_dict nodes, infer shape for all nodes in graph.
 
         Implementation note:
-        Iteratively calls node.op.infer_shape to infer shapes.
+        Iteratively calls node.op.get_predict_results to infer shapes.
         Node shapes stored in self.node_to_shape_map.
 
         Parameters
@@ -182,7 +182,7 @@ class Executor(object):
                 continue
             input_shapes = [self.node_to_shape_map[i] for i in node.inputs]
             assert None not in input_shapes
-            self.node_to_shape_map[node] = node.op.infer_shape(node, input_shapes, self.cudnnHandle)
+            self.node_to_shape_map[node] = node.op.get_predict_results(node, input_shapes, self.cudnnHandle)
 
     def memory_plan(self, feed_shapes):
         """Allocates ndarray.NDArray for every node except feed_dict nodes.
@@ -279,7 +279,7 @@ class Executor(object):
         if not are_feed_shapes_equal(feed_shapes, self.feed_shapes):
             # todo not allowed to change when running
             assert False
-            self.infer_shape(feed_shapes)
+            self.get_predict_results(feed_shapes)
             self.feed_shapes = feed_shapes
 
         # calculate started

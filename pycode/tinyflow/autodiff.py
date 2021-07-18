@@ -2297,10 +2297,14 @@ class Executor(object):
                                                                self.have_done_queue)
         self.memoryManagerController.setDaemon(True)
         self.memoryManagerController.start()
-
-        self.cudaStream = gpu_op.create_cudaStream()
-        self.cudnnHandle = gpu_op.create_cudnnHandle(self.cudaStream)
-        self.cublasHandle = gpu_op.create_cublasHandle(self.cudaStream)
+        if 'no_cuda' not in kwargs.keys() or not kwargs['no_cuda']:
+            self.cudaStream = gpu_op.create_cudaStream()
+            self.cudnnHandle = gpu_op.create_cudnnHandle(self.cudaStream)
+            self.cublasHandle = gpu_op.create_cublasHandle(self.cudaStream)
+            self.ctx_gpu = ndarray.gpu(0)
+        else:
+            print('no_cuda')
+            self.ctx_gpu = None
         # 按照拓扑排序设定index
         for i in range(len(self.topo_order)):
             self.topo_order[i].index = i
@@ -2311,7 +2315,6 @@ class Executor(object):
 
         # todo 此处hard code，后续需要修改
         self.ctx_cpu = ndarray.cpu(0)
-        self.ctx_gpu = ndarray.gpu(0)
         self.total_node = len(self.topo_order)
         self.f = open(f"{log_path}/hit_rate.txt", 'w')
 
@@ -2358,50 +2361,53 @@ class Executor(object):
 
         assert False
 
-    def init_operator_latency(self, feed_dict_sample):
-        if 'schedule' in self.log_path:
-            global index_to_gpu_map
-            global index_to_cpu_map
-            global index_to_cpu_flag
-            index_to_gpu_map = {}
-            index_to_cpu_flag = {}
-            feed_shapes = {}
-            swap_finish_event.clear()
+    def infer_all_shape(self, feed_dict_sample):
+        index_to_gpu_map_ = {}
+        feed_shapes = {}
+        res=[]
+        for node, value in feed_dict_sample.items():
+            index_to_gpu_map_[node.index] = None
+            feed_shapes[node] = value
+            if node.name == "X" or node.name == "y_":
+                continue
+            else:
+                index_to_gpu_map_[node.index + self.total_node] = None
 
+        if self.feed_shapes is None:
+            self.infer_shape(feed_shapes)
+            for node in self.topo_order:
+                if node.index not in index_to_gpu_map_:
+                    input_shape = []
+                    for input_node in node.inputs:
+                        input_shape.append(self.node_to_shape_map[input_node])
+                    res.append((node, input_shape))
+        return res
+
+    def init_operator_latency(self, feed_dict_sample, inferred_shape=None, **kwargs):
+        if 'schedule' in self.log_path:
+            index_to_gpu_map_ = {}
+            feed_shapes = {}
             for node, value in feed_dict_sample.items():
-                if ndarray.is_gpu_ctx(value.ctx):
-                    index_to_gpu_map[node.index] = value
-                    feed_shapes[node] = value.shape
+                index_to_gpu_map_[node.index] = None
+                if isinstance(value, tuple):
+                    feed_shapes[node] = value
                 else:
-                    index_to_gpu_map[node.index] = None
-                    index_to_cpu_flag[node.index] = True
-                    index_to_cpu_map[node.index] = value
                     feed_shapes[node] = value.shape
                 if node.name == "X" or node.name == "y_":
                     continue
                 else:
-                    index_to_gpu_map[node.index + self.total_node] = None
-                    index_to_cpu_flag[node.index + self.total_node] = False
-                    index_to_cpu_map[node.index + self.total_node] = ndarray.empty(value.shape, self.ctx_cpu)
-
+                    index_to_gpu_map_[node.index + self.total_node] = None
             if self.feed_shapes is None:
                 self.infer_shape(feed_shapes)
-                if 'schedule' in self.log_path:
-                    # s_ = time.time()
-                    for node in self.topo_order:
-                        if node.index not in index_to_gpu_map:
-                            # print(node.index)
-                            input_shape = []
-                            for input_node in node.inputs:
-                                input_shape.append(self.node_to_shape_map[input_node])
-                            operation_run_time = gettime(node, input_shape)
-                            if operation_run_time - 0.0 < 1e-10:
-                                operation_run_time = 1e-5
-                            self.predict_results[node] = operation_run_time
-                    # e_ = time.time()
-                    # prediction_time_cost = e_ - s_
-                    # if self.internal_info_queue is not None:
-                    #     self.internal_info_queue.put((s_, e_, prediction_time_cost))
+                for node in self.topo_order:
+                    if node.index not in index_to_gpu_map_:
+                        input_shape = []
+                        for input_node in node.inputs:
+                            input_shape.append(self.node_to_shape_map[input_node])
+                        operation_run_time = gettime(node, input_shape)
+                        if operation_run_time - 0.0 < 1e-10:
+                            operation_run_time = 1e-5
+                        self.predict_results[node.index] = operation_run_time
 
     def run(self, feed_dict, convert_to_numpy_ret_vals=False):
         """
@@ -2476,7 +2482,7 @@ class Executor(object):
                         for input_node in node.inputs:
                             input_shape.append(self.node_to_shape_map[input_node])
                     if node in self.predict_results.keys():
-                        operation_run_time = self.predict_results[node]
+                        operation_run_time = self.predict_results[node.index]
                     else:
                         operation_run_time = 1e-5
                     node_inputs = []

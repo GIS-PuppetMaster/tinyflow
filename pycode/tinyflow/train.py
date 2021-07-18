@@ -461,7 +461,7 @@ class TrainExecutor(object):
         """Given shapes of feed_dict nodes, infer shape for all nodes in graph.
 
         Implementation note:
-        Iteratively calls node.op.infer_shape to infer shapes.
+        Iteratively calls node.op.get_predict_results to infer shapes.
         Node shapes stored in self.node_to_shape_map.
 
         Parameters
@@ -475,7 +475,7 @@ class TrainExecutor(object):
                 continue
             input_shapes = [self.node_to_shape_map[i] for i in node.inputs]
             assert None not in input_shapes
-            self.node_to_shape_map[node] = node.op.infer_shape(node, input_shapes, self.cudnnHandle)
+            self.node_to_shape_map[node] = node.op.get_predict_results(node, input_shapes, self.cudnnHandle)
 
     def memory_plan(self, feed_shapes, g_map={}, Var_map={}):
         """Allocates ndarray.NDArray for every node except feed_dict nodes.
