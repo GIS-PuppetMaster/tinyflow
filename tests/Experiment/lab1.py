@@ -2,9 +2,8 @@ import os
 import sys
 
 import numpy as np
-from pycode.tinyflow import ndarray
-
 sys.path.append('../../')
+from pycode.tinyflow import ndarray
 from tests.Experiment import VGG16_test, ResNet50_test, DenseNet_test, InceptionV3_test, InceptionV4_test
 import random, time
 

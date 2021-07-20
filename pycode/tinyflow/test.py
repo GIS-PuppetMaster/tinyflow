@@ -19,6 +19,8 @@ gpu = 3
 os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
 
 t = 1
+
+
 def main():
     vgg16 = VGG16_test.VGG16(num_step=50, type=t, batch_size=16, gpu_num=gpu, path='test', file_name='test', n_class=1000, need_tosave=0)
     vgg16.run()
@@ -28,7 +30,7 @@ if __name__ == '__main__':
     profiler = LineProfiler()
     if t == 0:
         profiler.add_function(VanillaTrainExecutor.run)
-    elif t==1:
+    elif t == 1:
         vanilla_max_memory = 3218.875
         bud = vanilla_max_memory * (1 - 0.3520873066327611)
         # 总显存=预算+need_tosave(额外占用空间)

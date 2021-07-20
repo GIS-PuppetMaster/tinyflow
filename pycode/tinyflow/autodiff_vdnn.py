@@ -46,7 +46,11 @@ class Node(object):
         self.issgd = 0
         self.isw = 0
         self.is_conv = 0
-        self.is_conv_input = 0
+        self.is_conv_input=0
+        self.prefetched = 0
+        self.refcnt = 0
+
+
     def __add__(self, other):
         """Adding two nodes return a new node."""
         if isinstance(other, Node):
@@ -87,9 +91,7 @@ def Variable(name):
     placeholder_node.isw = 1
     return placeholder_node
 
-    # 数据用
-
-
+# 数据用
 def Placeholder(name):
     """User defined variables in an expression.
         e.g. x = Variable(name = "x")
@@ -2586,7 +2588,7 @@ def find_topo_sort(node_list):
     visited = set()
     topo_order = []
     for node in node_list:
-        #  print(node.name)
+        # print(node.name)
         topo_sort_dfs(node, visited, topo_order)
     return topo_order
 
