@@ -316,6 +316,7 @@ class VGG16():
         if self.job_id == 0:
             f1 = open(f"{self.log_path}/gpu_time.txt", "w+")
         start_record = -1
+        start_cold_start_record = False
         already_start_record = False
         already_start_cold_start_record = False
         for i in range(self.num_step):
@@ -325,17 +326,21 @@ class VGG16():
                     start_time = time.time()
                     if 'vanilla' in self.log_path:
                         gpu_record_cold_start.start()
+                        print(f'vanilla start_record at: {i}')
                 if not already_start_record:
-                    if start_record != -1 and not already_start_cold_start_record:
+                    if start_cold_start_record and not already_start_cold_start_record:
                         gpu_record_cold_start.start()
                         already_start_cold_start_record = True
+                        print(f'cold_start start_record at: {i}')
                     if i == start_record:
                         gpu_record.start()
                         already_start_record = True
-                        print('start_record')
+                        print(f'start_record at: {i}')
                     if self.ad.have_got_control_message == 2 and start_record == -1:
                         print('got control message')
                         start_record = i + 1
+                    if self.ad.have_got_control_message == 1:
+                        start_cold_start_record = True
             feed_dict[X] = ndarray.array(X_val, ctx=self.executor_ctx)
             feed_dict[y_] = ndarray.array(y_val, ctx=self.executor_ctx)
             res = executor.run(feed_dict=feed_dict)
@@ -382,9 +387,7 @@ def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
 
 
 if __name__ == '__main__':
-    import time
-    run_exp([['./log/VGG test/', 1, 1, 2]], False)
-    time.sleep(1000)
+    run_exp([['./log/VGG test/', 1, 1, 2]])
     # raw_path='./log/VGG/'
     # repeat=3
     # get_result(raw_path, repeat)
