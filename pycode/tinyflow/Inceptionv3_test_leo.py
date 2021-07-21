@@ -1,10 +1,10 @@
 import os
-GPU = 0
+GPU = 1
 os.environ['CUDA_VISIBLE_DEVICES'] = f'{GPU}'
 import sys
 sys.path.append('../../')
 from pycode.tinyflow import autodiff as ad
-from pycode.tinyflow.log.get_result import get_result
+from pycode.tinyflow.get_result import get_result
 from util import *
 
 
@@ -19,10 +19,6 @@ class Inceptionv3():
         self.job_id = job_id
         self.log_path = log_path
         self.executor_ctx = None
-        self.X = None
-        self.y_ = None
-        self.executor = None
-        self.feed_dict = None
         self.n_class = None
         self.ad = ad
         self.top_control_queue = None
@@ -561,13 +557,13 @@ class Inceptionv3():
 
 
     
-    def init_model(self, executor_ctx, n_class, top_control_queue, top_message_queue, **kwargs):
+    def run(self, executor_ctx, n_class, top_control_queue, top_message_queue, X_val, y_val,  **kwargs):
         self.n_class = n_class
         self.top_control_queue = top_control_queue
         self.top_message_queue = top_message_queue
-        self.executor_ctx = executor_ctx
-        self.X = self.ad.Placeholder("X")
-        self.y_ = self.ad.Placeholder("y_")
+        executor_ctx = executor_ctx
+        X = self.ad.Placeholder("X")
+        y_ = self.ad.Placeholder("y_")
         filterb_1 = self.ad.Variable("filterb_1")
         filterb_2 = self.ad.Variable("filterb_2")
         filterb_3 = self.ad.Variable("filterb_3")
@@ -581,7 +577,7 @@ class Inceptionv3():
         filtersb_val5 = ndarray.array(np.random.normal(0, 0.5, (192, 80, 3, 3)), executor_ctx)
 
         # inception前
-        covb_1 = self.conv2dplusrelu(self.X, filterb_1, "NCHW", "VALID", 2, 2)
+        covb_1 = self.conv2dplusrelu(X, filterb_1, "NCHW", "VALID", 2, 2)
         covb_2 = self.conv2dplusrelu(covb_1, filterb_2, "NCHW", "VALID", 1, 1)
         covb_3 = self.conv2dplusrelu(covb_2, filterb_3, "NCHW", "SAME", 1, 1)
         poolb = self.ad.pooling_2d_forward_op(covb_3, "NCHW", "max", 0, 0, 2, 2, 3, 3)
@@ -1026,10 +1022,10 @@ class Inceptionv3():
         loss = self.ad.crossEntropy_loss(y, self.y_)
         # fc8
 
-        self.executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue,
+        executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue,
                                          top_message_queue=top_message_queue, log_path=self.log_path, **kwargs)
 
-        self.feed_dict = {filterb_1: filtersb_val1, filterb_2: filtersb_val2, filterb_3: filtersb_val3
+        feed_dict = {filterb_1: filtersb_val1, filterb_2: filtersb_val2, filterb_3: filtersb_val3
             , filterb_4: filtersb_val4, filterb_5: filtersb_val5,
                           filter1_1_0: filter1_1_0_val, filter1_1_1a: filter1_1_1_vala, filter1_1_1b: filter1_1_1_valb, filter1_1_2a: filter1_1_2_vala, filter1_1_2b: filter1_1_2_valb
             , filter1_1_2c: filter1_1_2_valc, filter1_1_3: filter1_1_3_val
@@ -1077,41 +1073,49 @@ class Inceptionv3():
             , filtera1: filtera1val, W: W_val, b: b_val}
 
         feed_dict_mv = {}
-        for key, value in self.feed_dict.items():
+        for key, value in feed_dict.items():
             print(key)
-            m_key = self.executor.Variable_node_to_mv[key][0]
+            m_key = executor.Variable_node_to_mv[key][0]
             m_val = ndarray.array(np.zeros(shape=value.shape), executor_ctx)
-            v_key = self.executor.Variable_node_to_mv[key][1]
+            v_key = executor.Variable_node_to_mv[key][1]
             v_val = ndarray.array(np.zeros(shape=value.shape), executor_ctx)
             feed_dict_mv.update({m_key: m_val, v_key: v_val})
-        self.feed_dict.update(feed_dict_mv)
+        feed_dict.update(feed_dict_mv)
         if 'predict_results' in kwargs.keys():
-            self.executor.predict_results = kwargs['predict_results']
+            executor.predict_results = kwargs['predict_results']
         else:
             X_val = np.random.normal(loc=0, scale=0.1, size=(
                 self.batch_size, self.image_channel, self.image_size, self.image_size))  # number = batch_size  channel = 3  image_size = 224*224
             y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
-            self.feed_dict[self.X] = ndarray.array(X_val, ctx=executor_ctx)
-            self.feed_dict[self.y_] = ndarray.array(y_val, ctx=executor_ctx)
-            self.feed_dict.update(feed_dict_mv)
-            self.executor.init_operator_latency(feed_dict_sample=self.feed_dict, **kwargs)
-        return 0
-
-    def run_without_init(self, X_val, y_val, **kwargs):
+            feed_dict[X] = ndarray.array(X_val, ctx=executor_ctx)
+            feed_dict[y_] = ndarray.array(y_val, ctx=executor_ctx)
+            executor.init_operator_latency(feed_dict_sample=feed_dict, **kwargs)
+            
+        gpu_record_cold_start = GPURecord(self.log_path,suffix='_cold_start')
         gpu_record = GPURecord(self.log_path)
         if self.job_id == 0:
             f1 = open(f"{self.log_path}/gpu_time.txt", "w+")
+        start_record = False
+        already_start_record = False
         for i in range(self.num_step):
             print("step", i)
-            if self.job_id == 0 and i == 29:
-                gpu_record.start()
-                start_time = time.time()
-            self.feed_dict[self.X] = ndarray.array(X_val, ctx=self.executor_ctx)
-            self.feed_dict[self.y_] = ndarray.array(y_val, ctx=self.executor_ctx)
-            res = self.executor.run(feed_dict=self.feed_dict)
+            if self.job_id == 0:
+                if i == 0:
+                    gpu_record_cold_start.start()
+                    start_time = time.time()
+                if not already_start_record:
+                    if start_record:
+                        gpu_record.start()
+                        already_start_record = True
+                    if self.ad.have_got_control_message:
+                        start_record = True
+            feed_dict[X] = ndarray.array(X_val, ctx=self.executor_ctx)
+            feed_dict[y_] = ndarray.array(y_val, ctx=self.executor_ctx)
+            res = executor.run(feed_dict=feed_dict)
             loss_val = res[0]
-            self.feed_dict = res[1]
+            feed_dict = res[1]
         if self.job_id == 0:
+            gpu_record_cold_start.stop()
             gpu_record.stop()
             f1.write(f'time_cost:{time.time() - start_time}')
             f1.flush()
@@ -1129,9 +1133,9 @@ class Inceptionv3():
         self.top_message_queue.join_thread()
         return 0
 
-    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, **kwargs):
-        self.init_model(executor_ctx, n_class, top_control_queue, top_message_queue, **kwargs)
-        return self.run_without_init(X_val, y_val)
+    # def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, **kwargs):
+    #     self.init_model(executor_ctx, n_class, top_control_queue, top_message_queue, **kwargs)
+    #     return self.run_without_init(X_val, y_val)
 
 
 def run_exp(workloads, analysis_result=True, skip=None, **kwargs):

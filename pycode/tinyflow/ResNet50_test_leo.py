@@ -1,12 +1,12 @@
 import os
 
-GPU = 0
+GPU = 1
 os.environ['CUDA_VISIBLE_DEVICES'] = f'{GPU}'
 import sys
 
 sys.path.append('../../')
 from pycode.tinyflow import autodiff as ad
-from pycode.tinyflow.log.get_result import get_result
+from pycode.tinyflow.get_result import get_result
 from util import *
 
 
@@ -22,10 +22,6 @@ class ResNet50():
         self.batch_size = batch_size
         self.ad = ad
         self.executor_ctx = None
-        self.X = None
-        self.y_ = None
-        self.executor = None
-        self.feed_dict = None
         self.n_class = None
         self.top_control_queue = None
         self.top_message_queue = None
@@ -206,13 +202,13 @@ class ResNet50():
         executor.init_operator_latency(feed_dict_sample=feed_dict, **kwargs)
         return executor.predict_results
 
-    def init_model(self, executor_ctx, n_class, top_control_queue, top_message_queue, **kwargs):
+    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, **kwargs):
         self.n_class = n_class
         self.top_control_queue = top_control_queue
         self.top_message_queue = top_message_queue
         self.executor_ctx = executor_ctx
-        self.X = self.ad.Placeholder("X")
-        self.y_ = self.ad.Placeholder("y_")
+        X = self.ad.Placeholder("X")
+        y_ = self.ad.Placeholder("y_")
         W1 = self.ad.Variable("W1")
         W6 = self.ad.Variable("W6")
         b6 = self.ad.Variable("b6")
@@ -220,7 +216,7 @@ class ResNet50():
         b7 = self.ad.Variable("b7")
         # zero pading
         # pad = 3   stride=1   pool_size=1*1
-        pool0 = self.ad.pooling_2d_forward_op(self.X, "NCHW", "max", 3, 3, 1, 1, 1, 1)  # 3*224*224 ->  3*230*230
+        pool0 = self.ad.pooling_2d_forward_op(X, "NCHW", "max", 3, 3, 1, 1, 1, 1)  # 3*224*224 ->  3*230*230
 
         # conv1
         conv1 = self.ad.convolution_2d_forward_op(pool0, W1, "NCHW", "VALID", 2, 2)  # stride = 2  3*230*230 -> 64*112*112
@@ -262,7 +258,7 @@ class ResNet50():
         dense7 = self.ad.dense(drop6, W7, b7)
         y = self.ad.fullyactivation_forward_op(dense7, "NCHW", "softmax")
 
-        loss = self.ad.crossEntropy_loss(y, self.y_)
+        loss = self.ad.crossEntropy_loss(y, y_)
 
         W1_val = ndarray.array(np.random.normal(loc=0, scale=0.1, size=(64, self.image_channel, 7, 7)), executor_ctx)
         W6_val = ndarray.array(np.random.normal(loc=0, scale=0.1, size=(1 * 1 * 2048, 2048)), executor_ctx)
@@ -270,63 +266,73 @@ class ResNet50():
         W7_val = ndarray.array(np.random.normal(loc=0, scale=0.1, size=(2048, n_class)), executor_ctx)
         b7_val = ndarray.array(np.random.normal(loc=0, scale=0.1, size=(n_class)), executor_ctx)
 
-        self.feed_dict = {W1: W1_val, W6: W6_val, W7: W7_val, b6: b6_val, b7: b7_val}
-        self.feed_dict.update(dict2)
-        self.feed_dict.update(dict2_1)
-        self.feed_dict.update(dict2_2)
-        self.feed_dict.update(dict3)
-        self.feed_dict.update(dict3_1)
-        self.feed_dict.update(dict3_2)
-        self.feed_dict.update(dict3_3)
-        self.feed_dict.update(dict4)
-        self.feed_dict.update(dict4_1)
-        self.feed_dict.update(dict4_2)
-        self.feed_dict.update(dict4_3)
-        self.feed_dict.update(dict4_4)
-        self.feed_dict.update(dict4_5)
-        self.feed_dict.update(dict5)
-        self.feed_dict.update(dict5_1)
-        self.feed_dict.update(dict5_2)
+        feed_dict = {W1: W1_val, W6: W6_val, W7: W7_val, b6: b6_val, b7: b7_val}
+        feed_dict.update(dict2)
+        feed_dict.update(dict2_1)
+        feed_dict.update(dict2_2)
+        feed_dict.update(dict3)
+        feed_dict.update(dict3_1)
+        feed_dict.update(dict3_2)
+        feed_dict.update(dict3_3)
+        feed_dict.update(dict4)
+        feed_dict.update(dict4_1)
+        feed_dict.update(dict4_2)
+        feed_dict.update(dict4_3)
+        feed_dict.update(dict4_4)
+        feed_dict.update(dict4_5)
+        feed_dict.update(dict5)
+        feed_dict.update(dict5_1)
+        feed_dict.update(dict5_2)
 
         # 只声明，不操作
-        self.executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue,
-                                         top_message_queue=top_message_queue, log_path=self.log_path, **kwargs)
+        executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue,
+                                         top_message_queue=top_message_queue, log_path=self.log_path)
 
         feed_dict_mv = {}
-        for key, value in self.feed_dict.items():
-            m_key = self.executor.Variable_node_to_mv[key][0]
+        for key, value in feed_dict.items():
+            m_key = executor.Variable_node_to_mv[key][0]
             m_val = ndarray.array(np.zeros(shape=value.shape), executor_ctx)
-            v_key = self.executor.Variable_node_to_mv[key][1]
+            v_key = executor.Variable_node_to_mv[key][1]
             v_val = ndarray.array(np.zeros(shape=value.shape), executor_ctx)
             feed_dict_mv.update({m_key: m_val, v_key: v_val})
-        self.feed_dict.update(feed_dict_mv)
+        feed_dict.update(feed_dict_mv)
         if 'predict_results' in kwargs.keys():
-            self.executor.predict_results = kwargs['predict_results']
+            executor.predict_results = kwargs['predict_results']
         else:
             X_val = np.random.normal(loc=0, scale=0.1, size=(
                 self.batch_size, self.image_channel, self.image_size, self.image_size))  # number = batch_size  channel = 3  image_size = 224*224
             y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
-            self.feed_dict[self.X] = ndarray.array(X_val, ctx=executor_ctx)
-            self.feed_dict[self.y_] = ndarray.array(y_val, ctx=executor_ctx)
-            self.feed_dict.update(feed_dict_mv)
-            self.executor.init_operator_latency(feed_dict_sample=self.feed_dict, **kwargs)
-        return 0
+            feed_dict[X] = ndarray.array(X_val, ctx=executor_ctx)
+            feed_dict[y_] = ndarray.array(y_val, ctx=executor_ctx)
+            executor.init_operator_latency(feed_dict_sample=feed_dict, **kwargs)
 
-    def run_without_init(self, X_val, y_val, **kwargs):
+        gpu_record_cold_start = GPURecord(self.log_path,suffix='_cold_start')
         gpu_record = GPURecord(self.log_path)
         if self.job_id == 0:
             f1 = open(f"{self.log_path}/gpu_time.txt", "w+")
+        start_record = -1
+        already_start_record = False
         for i in range(self.num_step):
             print("step", i)
-            if self.job_id == 0 and i == 29:
-                gpu_record.start()
-                start_time = time.time()
-            self.feed_dict[self.X] = ndarray.array(X_val, ctx=self.executor_ctx)
-            self.feed_dict[self.y_] = ndarray.array(y_val, ctx=self.executor_ctx)
-            res = self.executor.run(feed_dict=self.feed_dict)
+            if self.job_id == 0:
+                if i == 0:
+                    gpu_record_cold_start.start()
+                    start_time = time.time()
+                if not already_start_record:
+                    if i == start_record:
+                        gpu_record.start()
+                        already_start_record = True
+                        print('start_record')
+                    if self.ad.have_got_control_message and start_record==-1:
+                        print('got control message')
+                        start_record = i+5
+            feed_dict[X] = ndarray.array(X_val, ctx=self.executor_ctx)
+            feed_dict[y_] = ndarray.array(y_val, ctx=self.executor_ctx)
+            res = executor.run(feed_dict=feed_dict)
             loss_val = res[0]
-            self.feed_dict = res[1]
+            feed_dict = res[1]
         if self.job_id == 0:
+            gpu_record_cold_start.stop()
             gpu_record.stop()
             f1.write(f'time_cost:{time.time() - start_time}')
             f1.flush()
@@ -344,9 +350,9 @@ class ResNet50():
         self.top_message_queue.join_thread()
         return 0
 
-    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, **kwargs):
-        self.init_model(executor_ctx, n_class, top_control_queue, top_message_queue, **kwargs)
-        return self.run_without_init(X_val, y_val)
+    # def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, **kwargs):
+    #     self.init_model(executor_ctx, n_class, top_control_queue, top_message_queue, **kwargs)
+    #     return self.run_without_init(X_val, y_val)
 
 
 def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
@@ -365,5 +371,6 @@ def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
             get_result(raw_path, repeat)
 
 
+
 if __name__ == '__main__':
-    run_exp([['./log/ResNet x1/', 3, 1, 2]])
+    run_exp([['./log/ResNet x1/', 1, 1, 2]], skip='vanilla')

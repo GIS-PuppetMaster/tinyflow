@@ -738,7 +738,7 @@ def generate_scheduling_plan(logged_times, gpu: int):
             total_memory = 6000
         max_memory, max_tensors, last_input_accesses, max_time, time_axis = run_global_memory_analysis(swap_scheduler, swapped_out_tensor)
         max_memory_footprint.append(max_memory)
-        # 最后三次迭代的峰值，做一阶差分，结果的最大值大于上一次峰值的0.05%以上或迭代次数小于200轮才继续~`
+        # 最后三次迭代的峰值，做一阶差分，结果的最大值大于上一次峰值的0.05%以上或迭代次数小于100轮才继续~`
         if len(max_memory_footprint) > 3 and max([max_memory_footprint[i] - max_memory_footprint[i + 1] for i in range(len(max_memory_footprint) - 3, len(max_memory_footprint) - 1)]) < max_memory_footprint[
             -1] * 0.0005 and iter > 100:
             break

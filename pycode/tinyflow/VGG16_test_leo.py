@@ -1,10 +1,12 @@
 import os
-GPU = 0
+
+GPU = 2
 os.environ['CUDA_VISIBLE_DEVICES'] = f'{GPU}'
 import sys
+
 sys.path.append('../../')
-from pycode.tinyflow import autodiff as ad, gpu_op
-from pycode.tinyflow.log.get_result import get_result
+from pycode.tinyflow import autodiff as ad
+from pycode.tinyflow.get_result import get_result
 from util import *
 
 
@@ -18,10 +20,6 @@ class VGG16():
         self.batch_size = batch_size
         self.log_path = log_path
         self.executor_ctx = None
-        self.X = None
-        self.y_ = None
-        self.executor = None
-        self.feed_dict = None
         self.n_class = None
         self.ad = ad
         self.top_control_queue = None
@@ -123,11 +121,11 @@ class VGG16():
         W5_2_val = (512, 512, 3, 3)
         W5_3_val = (512, 512, 3, 3)
         W6_val = (512 * int(self.image_size / 32) * int(self.image_size / 32), 4096)
-        W7_val =(4096, 4096)
+        W7_val = (4096, 4096)
         W8_val = (4096, n_class)
-        b6_val = (4096, )
-        b7_val = (4096, )
-        b8_val = (n_class, )
+        b6_val = (4096,)
+        b7_val = (4096,)
+        b8_val = (n_class,)
 
         # 只声明，不操作
         executor = self.ad.Executor(loss, y, 0.001, top_control_queue=None, top_message_queue=None, log_path=self.log_path, **kwargs)
@@ -159,7 +157,7 @@ class VGG16():
             v_key = executor.Variable_node_to_mv[key][1]
             v_val = value
             feed_dict_mv.update({m_key: m_val, v_key: v_val})
-        X_val = (self.batch_size, self.image_channel, self.image_size, self.image_size) # number = batch_size  channel = 3  image_size = 224*224
+        X_val = (self.batch_size, self.image_channel, self.image_size, self.image_size)  # number = batch_size  channel = 3  image_size = 224*224
         y_val = (self.batch_size, 1000)  # n_class = 1000
         feed_dict.update(feed_dict_mv)
         feed_dict[X] = X_val
@@ -167,14 +165,13 @@ class VGG16():
         executor.init_operator_latency(feed_dict_sample=feed_dict, **kwargs)
         return executor.predict_results
 
-
-    def init_model(self, executor_ctx, n_class, top_control_queue, top_message_queue, **kwargs):
+    def run(self, executor_ctx, n_class, top_control_queue, top_message_queue, X_val, y_val, **kwargs):
         self.n_class = n_class
         self.top_control_queue = top_control_queue
         self.top_message_queue = top_message_queue
         self.executor_ctx = executor_ctx
-        self.X = self.ad.Placeholder("X")
-        self.y_ = self.ad.Placeholder("y_")
+        X = self.ad.Placeholder("X")
+        y_ = self.ad.Placeholder("y_")
         W1_1 = self.ad.Variable("W1_1")
         W1_2 = self.ad.Variable("W1_2")
         W2_1 = self.ad.Variable("W2_1")
@@ -196,7 +193,7 @@ class VGG16():
         b8 = self.ad.Variable("b8")
 
         # conv 1
-        conv1_1 = self.ad.convolution_2d_forward_op(self.X, W1_1, "NCHW", "SAME", 1, 1)
+        conv1_1 = self.ad.convolution_2d_forward_op(X, W1_1, "NCHW", "SAME", 1, 1)
         act1_1 = self.ad.activation_forward_op(conv1_1, "NCHW", "relu")
 
         conv1_2 = self.ad.convolution_2d_forward_op(act1_1, W1_2, "NCHW", "SAME", 1, 1)
@@ -253,7 +250,7 @@ class VGG16():
         bn8 = self.ad.fullybn_forward_op(fc8, "NCHW")
         y = self.ad.fullyactivation_forward_op(bn8, "NCHW", "softmax")
 
-        loss = self.ad.crossEntropy_loss(y, self.y_)
+        loss = self.ad.crossEntropy_loss(y, y_)
         W1_1_val = ndarray.array(np.random.normal(0.0, 0.1, (64, self.image_channel, 3, 3)), executor_ctx)
         W1_2_val = ndarray.array(np.random.normal(0.0, 0.1, (64, 64, 3, 3)), executor_ctx)
         W2_1_val = ndarray.array(np.random.normal(0.0, 0.1, (128, 64, 3, 3)), executor_ctx)
@@ -275,8 +272,8 @@ class VGG16():
         b8_val = ndarray.array(np.ones(n_class) * 0.1, executor_ctx)
 
         # 只声明，不操作
-        self.executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue, top_message_queue=top_message_queue, log_path=self.log_path, **kwargs)
-        self.feed_dict = {
+        executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue, top_message_queue=top_message_queue, log_path=self.log_path)
+        feed_dict = {
             W1_1: W1_1_val,
             W1_2: W1_2_val,
             W2_1: W2_1_val,
@@ -298,40 +295,47 @@ class VGG16():
             b8: b8_val
         }
         feed_dict_mv = {}
-        for key, value in self.feed_dict.items():
-            m_key = self.executor.Variable_node_to_mv[key][0]
+        for key, value in feed_dict.items():
+            m_key = executor.Variable_node_to_mv[key][0]
             m_val = ndarray.array(np.zeros(shape=value.shape), executor_ctx)
-            v_key = self.executor.Variable_node_to_mv[key][1]
+            v_key = executor.Variable_node_to_mv[key][1]
             v_val = ndarray.array(np.zeros(shape=value.shape), executor_ctx)
             feed_dict_mv.update({m_key: m_val, v_key: v_val})
-        self.feed_dict.update(feed_dict_mv)
+        feed_dict.update(feed_dict_mv)
         if 'predict_results' in kwargs.keys():
-            self.executor.predict_results = kwargs['predict_results']
+            executor.predict_results = kwargs['predict_results']
         else:
             X_val = np.random.normal(loc=0, scale=0.1, size=(
                 self.batch_size, self.image_channel, self.image_size, self.image_size))  # number = batch_size  channel = 3  image_size = 224*224
             y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
-            self.feed_dict[self.X] = ndarray.array(X_val, ctx=executor_ctx)
-            self.feed_dict[self.y_] = ndarray.array(y_val, ctx=executor_ctx)
-            self.feed_dict.update(feed_dict_mv)
-            self.executor.init_operator_latency(feed_dict_sample=self.feed_dict, **kwargs)
-        return 0
-
-    def run_without_init(self, X_val, y_val, **kwargs):
+            feed_dict[X] = ndarray.array(X_val, ctx=executor_ctx)
+            feed_dict[y_] = ndarray.array(y_val, ctx=executor_ctx)
+            executor.init_operator_latency(feed_dict_sample=feed_dict, **kwargs)
+        gpu_record_cold_start = GPURecord(self.log_path, suffix='_cold_start')
         gpu_record = GPURecord(self.log_path)
         if self.job_id == 0:
             f1 = open(f"{self.log_path}/gpu_time.txt", "w+")
+        start_record = False
+        already_start_record = False
         for i in range(self.num_step):
             print("step", i)
-            if self.job_id == 0 and i == 29:
-                gpu_record.start()
-                start_time = time.time()
-            self.feed_dict[self.X] = ndarray.array(X_val, ctx=self.executor_ctx)
-            self.feed_dict[self.y_] = ndarray.array(y_val, ctx=self.executor_ctx)
-            res = self.executor.run(feed_dict=self.feed_dict)
+            if self.job_id == 0:
+                if i == 0:
+                    gpu_record_cold_start.start()
+                    start_time = time.time()
+                if not already_start_record:
+                    if start_record:
+                        gpu_record.start()
+                        already_start_record = True
+                    if self.ad.have_got_control_message:
+                        start_record = True
+            feed_dict[X] = ndarray.array(X_val, ctx=self.executor_ctx)
+            feed_dict[y_] = ndarray.array(y_val, ctx=self.executor_ctx)
+            res = executor.run(feed_dict=feed_dict)
             loss_val = res[0]
-            self.feed_dict = res[1]
+            feed_dict = res[1]
         if self.job_id == 0:
+            gpu_record_cold_start.stop()
             gpu_record.stop()
             f1.write(f'time_cost:{time.time() - start_time}')
             f1.flush()
@@ -349,9 +353,9 @@ class VGG16():
         self.top_message_queue.join_thread()
         return 0
 
-    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, **kwargs):
-        self.init_model(executor_ctx, n_class, top_control_queue, top_message_queue, **kwargs)
-        return self.run_without_init(X_val, y_val)
+    # def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, **kwargs):
+    #     self.init_model(executor_ctx, n_class, top_control_queue, top_message_queue, **kwargs)
+    #     return self.run_without_init(X_val, y_val)
 
 
 def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
@@ -361,7 +365,7 @@ def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
             if i == 0 and skip != 'schedule':
                 path = raw_path + 'schedule'
                 print(path)
-                main(path, repeat, jobs_num, batch_size,VGG16, **kwargs)
+                main(path, repeat, jobs_num, batch_size, VGG16, **kwargs)
             elif skip != 'vanilla':
                 path = raw_path + 'vanilla'
                 print(path)
@@ -371,4 +375,9 @@ def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
 
 
 if __name__ == '__main__':
-    run_exp([['./log/VGG test/', 1, 1, 16]])
+    import time
+    run_exp([['./log/VGG test/', 1, 1, 2]], False)
+    time.sleep(1000)
+    # raw_path='./log/VGG/'
+    # repeat=3
+    # get_result(raw_path, repeat)

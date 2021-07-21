@@ -14,12 +14,12 @@ from pycode.tinyflow import ndarray
 
 
 class GPURecord(threading.Thread):
-    def __init__(self, log_path):
+    def __init__(self, log_path, suffix=""):
         threading.Thread.__init__(self)
         pynvml.nvmlInit()
         GPU = int(os.environ['CUDA_VISIBLE_DEVICES'])
         self.handle = pynvml.nvmlDeviceGetHandleByIndex(GPU)
-        self.f = open(f"{log_path}/gpu_record.txt", "w+")
+        self.f = open(f"{log_path}/gpu_record{suffix}.txt", "w+")
         # todo 临时用作释放的计数器
         self.times = 0
         self.max_gpu_memory = 0

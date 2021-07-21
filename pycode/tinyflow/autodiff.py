@@ -37,7 +37,7 @@ class MemoryManagerController(threading.Thread):
         self.cpu_ctx = ndarray.cpu(0)
         self.gpu_ctx = ndarray.gpu(0)
         self.memoryManager = MemoryManager(self.will_do_queue, self.have_done_queue)
-        self.memoryManager.setDaemon(True)
+        # self.memoryManager.setDaemon(True)
         self.memoryManager.start()
 
     def run(self):
@@ -2236,7 +2236,7 @@ def nodelist_to_name(nodelist):
 class Executor(object):
     """Executor computes values for given set of nodes in computation graph."""
 
-    def __init__(self, targetloss, y, learning_rate, top_control_queue, top_message_queue, log_path, internal_info_queue=None, **kwargs):
+    def __init__(self, targetloss, y, learning_rate, top_control_queue, top_message_queue, log_path):
         """
         Parameters
         ----------
@@ -2289,22 +2289,17 @@ class Executor(object):
         self.feed_shapes = None
         self.top_control_queue = top_control_queue
         self.top_message_queue = top_message_queue
-        self.internal_info_queue = internal_info_queue
         self.control_queue = queue.Queue()
         self.have_done_queue = queue.Queue()
         self.will_do_queue = queue.Queue()
         self.memoryManagerController = MemoryManagerController(self.control_queue, self.will_do_queue,
                                                                self.have_done_queue)
-        self.memoryManagerController.setDaemon(True)
+        # self.memoryManagerController.setDaemon(True)
         self.memoryManagerController.start()
-        if 'no_cuda' not in kwargs.keys() or not kwargs['no_cuda']:
-            self.cudaStream = gpu_op.create_cudaStream()
-            self.cudnnHandle = gpu_op.create_cudnnHandle(self.cudaStream)
-            self.cublasHandle = gpu_op.create_cublasHandle(self.cudaStream)
-            self.ctx_gpu = ndarray.gpu(0)
-        else:
-            print('no_cuda')
-            self.ctx_gpu = None
+
+        self.cudaStream = gpu_op.create_cudaStream()
+        self.cudnnHandle = gpu_op.create_cudnnHandle(self.cudaStream)
+        self.cublasHandle = gpu_op.create_cublasHandle(self.cudaStream)
         # 按照拓扑排序设定index
         for i in range(len(self.topo_order)):
             self.topo_order[i].index = i
@@ -2315,6 +2310,7 @@ class Executor(object):
 
         # todo 此处hard code，后续需要修改
         self.ctx_cpu = ndarray.cpu(0)
+        self.ctx_gpu = ndarray.gpu(0)
         self.total_node = len(self.topo_order)
         self.f = open(f"{log_path}/hit_rate.txt", 'w')
 

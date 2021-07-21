@@ -10,10 +10,10 @@ from Inceptionv3_test_leo import Inceptionv3
 from Inceptionv4_test_leo import Inceptionv4
 from ResNet50_test_leo import ResNet50
 from DenseNet_test_leo import DenseNet121
-from multiprocessing import Process, Queue
+from multiprocessing import Process
 from pycode.tinyflow import Scheduler as mp
 from pycode.tinyflow import ndarray
-from pycode.tinyflow.log.get_result import get_result
+from pycode.tinyflow.get_result import get_result
 from util import GPURecord
 
 
@@ -74,7 +74,7 @@ def run_model(log_path, model: list, top_control_queue_list, top_message_queue_l
 if __name__ == '__main__':
     with open(f'../../res/inferred_shape.pkl', 'rb') as f:
         predict_results = pkl.load(f)
-    for t in range(3):
+    for t in range(10):
         log_path = f'./log/MDW/repeat_{t}/vanilla'
         if not os.path.exists(log_path):
             os.makedirs(log_path)
@@ -112,4 +112,4 @@ if __name__ == '__main__':
         f1.flush()
         f1.close()
         recorder.stop()
-    get_result(raw_workload='./log/MDW/', repeat_times=3)
+    get_result(raw_workload='./log/MDW/', repeat_times=10)
