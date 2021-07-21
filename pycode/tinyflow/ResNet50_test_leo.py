@@ -312,20 +312,25 @@ class ResNet50():
             f1 = open(f"{self.log_path}/gpu_time.txt", "w+")
         start_record = -1
         already_start_record = False
+        already_start_cold_start_record = False
         for i in range(self.num_step):
             print("step", i)
             if self.job_id == 0:
                 if i == 0:
-                    gpu_record_cold_start.start()
                     start_time = time.time()
+                    if 'vanilla' in self.log_path:
+                        gpu_record_cold_start.start()
                 if not already_start_record:
+                    if start_record!=-1 and not already_start_cold_start_record:
+                        gpu_record_cold_start.start()
+                        already_start_cold_start_record = True
                     if i == start_record:
                         gpu_record.start()
                         already_start_record = True
                         print('start_record')
-                    if self.ad.have_got_control_message and start_record==-1:
+                    if self.ad.have_got_control_message==2 and start_record==-1:
                         print('got control message')
-                        start_record = i+5
+                        start_record = i+1
             feed_dict[X] = ndarray.array(X_val, ctx=self.executor_ctx)
             feed_dict[y_] = ndarray.array(y_val, ctx=self.executor_ctx)
             res = executor.run(feed_dict=feed_dict)
@@ -373,4 +378,8 @@ def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
 
 
 if __name__ == '__main__':
-    run_exp([['./log/ResNet x1/', 1, 1, 2]], skip='vanilla')
+    run_exp([['./log/ResNet x1/', 1, 1, 2]])
+    # raw_path = './log/ResNet x1/'
+    # repeat=1
+    # get_result(raw_path, repeat)
+

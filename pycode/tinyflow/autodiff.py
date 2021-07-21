@@ -24,7 +24,7 @@ swap_finish_event = threading.Event()
 swap_out_onetime_num = 0
 swap_out_onetime_finish_event = threading.Event()
 swap_out_onetime_finish_event.set()
-have_got_control_message = False
+have_got_control_message = 0
 
 
 class MemoryManagerController(threading.Thread):
@@ -2477,7 +2477,7 @@ class Executor(object):
                         input_shape = []
                         for input_node in node.inputs:
                             input_shape.append(self.node_to_shape_map[input_node])
-                    if node in self.predict_results.keys():
+                    if node.index in self.predict_results.keys():
                         operation_run_time = self.predict_results[node.index]
                     else:
                         operation_run_time = 1e-5
@@ -2610,10 +2610,10 @@ class Executor(object):
             print("等待调度")
             top_swap_list, top_release_list, top_recomputation_list = self.top_control_queue.get(block=True)
             solve_control_message(top_swap_list, top_release_list, top_recomputation_list)
-            have_got_control_message = True
+            have_got_control_message += 1
 
         if not self.top_control_queue.empty():
-            have_got_control_message = True
+            have_got_control_message += 1
             print("get control message")
             # todo 解析从上游传入的控制信息。
 
