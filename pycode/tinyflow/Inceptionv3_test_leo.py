@@ -1017,7 +1017,7 @@ class Inceptionv3():
 
         dense = self.ad.dense(squeeze, W, b)
         y = self.ad.fullyactivation_forward_op(dense, "NCHW", "softmax")
-        loss = self.ad.crossEntropy_loss(y, self.y_)
+        loss = self.ad.crossEntropy_loss(y, y_)
         # fc8
 
         executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue,
@@ -1165,4 +1165,4 @@ def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
 
 
 if __name__ == '__main__':
-    run_exp([['./log/Inception V3 x2/', 3, 1, 2], ['./log/Inception V3 x3/', 3, 1, 2]])
+    run_exp([['./log/Inception V3 bs4/', 1, 1, 4]])

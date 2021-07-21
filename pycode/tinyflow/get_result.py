@@ -84,12 +84,12 @@ def get_result(raw_workload, repeat_times):
                 f'\nefficiency_cold_start:{all_saved_ratio_cold_start.mean() / all_extra_overhead.mean()}')
 
 
-# if __name__ == '__main__':
-#     from MakeCSV import filelist
-#     for p in filelist:
-#         try:
-#             get_result(p, 3)
-#             print(f'完成{p}')
-#         except Exception as e:
-#             print(f'跳过path:{p}')
-#             traceback.print_exc()
+if __name__ == '__main__':
+    from log.MakeCSV import file_list
+    for p in file_list:
+        try:
+            get_result(p, 3)
+            print(f'完成{p}')
+        except Exception as e:
+            print(f'跳过path:{p}')
+            traceback.print_exc()

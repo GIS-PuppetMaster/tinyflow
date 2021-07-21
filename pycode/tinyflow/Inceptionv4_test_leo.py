@@ -446,7 +446,7 @@ class Inceptionv4():
         y = self.ad.fullyactivation_forward_op(dense, "NCHW", "softmax")
         loss = self.ad.crossEntropy_loss(y, y_)
         executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue,
-                                         top_message_queue=top_message_queue, log_path=self.log_path, **kwargs)
+                                         top_message_queue=top_message_queue, log_path=self.log_path)
 
         feed_dict = {f1: f1val, f2: f2val, f3: f3val, f4: f4val, f5_1: f5_1val, f5_2: f5_2val, f6_1: f6_1val, f6_2: f6_2val, f6_3: f6_3val, f6_4: f6_4val, f7: f7val, W: W_val, b: b_val}
         feed_dict.update(dicta1)

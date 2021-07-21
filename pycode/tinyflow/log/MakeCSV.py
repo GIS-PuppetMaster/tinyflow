@@ -2,25 +2,32 @@ import os
 import pandas as pd
 import numpy as np
 
-filelist = ['VGG', 'VGG x1', 'VGG x2', 'VGG x3', 'VGG bs4', 'VGG bs8', 'VGG bs32',
-            'Inception V3', 'Inception V3 x1', 'Inception V3 x2', 'Inception V3 x3', 'InceptionV3 bs4', 'InceptionV3 bs8', 'InceptionV3 bs32',
-            'Inception V4', 'Inception V4 x1', 'Inception V4 x2', 'Inception V4 x3', 'InceptionV4 bs4', 'InceptionV4 bs8',
-            'ResNet', 'ResNet x1', 'ResNet x2', 'ResNet x3', 'ResNet50 bs4', 'ResNet50 bs8', 'ResNet50 bs32',
-            'DenseNet', 'DenseNet x1', 'DenseNet x2', 'DenseNet x3', 'DenseNet bs4', 'DenseNet bs8']
+file_list = ['VGG', 'VGG x1', 'VGG x2', 'VGG x3', 'VGG MDW', 'VGG bs4', 'VGG bs8', 'VGG bs32',
+             'Inception V3', 'Inception V3 x1', 'Inception V3 x2', 'Inception V3 x3', 'Inception V3 MDW', 'Inception V3 bs4', 'Inception V3 bs8', 'Inception V3 bs32',
+             'Inception V4', 'Inception V4 x1', 'Inception V4 x2', 'Inception V4 x3', 'Inception V4 MDW', 'Inception V4 bs4', 'Inception V4 bs8',
+             'ResNet', 'ResNet x1', 'ResNet x2', 'ResNet x3', 'ResNet MDW', 'ResNet50 bs4', 'ResNet50 bs8', 'ResNet50 bs32',
+             'DenseNet', 'DenseNet x1', 'DenseNet x2', 'DenseNet x3', 'DenseNet MDW', 'DenseNet bs4', 'DenseNet bs8']
 single_workloads = ['VGG', 'Inception V3', 'Inception V4', 'ResNet', 'DenseNet']
-multi_workloads = ['VGG x1', 'VGG x2', 'VGG x3', 'Inception V3 x1', 'Inception V3 x2', 'Inception V3 x3', 'Inception V4 x1', 'Inception V4 x2', 'Inception V4 x3',
-                   'ResNet x1', 'ResNet x2', 'ResNet x3', 'DenseNet x1', 'DenseNet x2', 'DenseNet x3']
-baseline_multi_workloads = ['VGG x1', 'VGG x2', 'VGG x3', 'InceptionV3 x1', 'InceptionV3 x2', 'InceptionV3 x3', 'InceptionV4 x1', 'InceptionV4 x2', 'InceptionV4 x3',
-                            'ResNet x1', 'ResNet x2', 'ResNet x3', 'DenseNet x1', 'DenseNet x2', 'DenseNet x3']
+multi_workloads = ['VGG x1', 'VGG x2', 'VGG x3', 'VGG MDW',
+                   'Inception V3 x1', 'Inception V3 x2', 'Inception V3 x3', 'Inception V3 MDW',
+                   'Inception V4 x1', 'Inception V4 x2', 'Inception V4 x3', 'Inception V4 MDW',
+                   'ResNet x1', 'ResNet x2', 'ResNet x3', 'ResNet MDW',
+                   'DenseNet x1', 'DenseNet x2', 'DenseNet x3', 'DenseNet MDW']
+# todo: MDW
+baseline_multi_workloads = ['VGG x1', 'VGG x2', 'VGG x3',
+                            'InceptionV3 x1', 'InceptionV3 x2', 'InceptionV3 x3',
+                            'InceptionV4 x1', 'InceptionV4 x2', 'InceptionV4 x3',
+                            'ResNet x1', 'ResNet x2', 'ResNet x3',
+                            'DenseNet x1', 'DenseNet x2', 'DenseNet x3']
 baseline_path = './baseline/'
 batch_size_workloads = ['VGG x1', 'VGG bs4', 'VGG bs8', 'VGG', 'VGG bs32',
-                        'Inception V3 x1', 'InceptionV3 bs4', 'InceptionV3 bs8', 'Inception V3', 'InceptionV3 bs32',
-                        'Inception V4 x1', 'InceptionV4 bs4', 'InceptionV4 bs8', 'Inception V4',
+                        'Inception V3 x1', 'Inception V3 bs4', 'Inception V3 bs8', 'Inception V3', 'Inception V3 bs32',
+                        'Inception V4 x1', 'Inception V4 bs4', 'Inception V4 bs8', 'Inception V4',
                         'ResNet x1', 'ResNet50 bs4', 'ResNet50 bs8', 'ResNet', 'ResNet50 bs32',
                         'DenseNet x1', 'DenseNet bs4', 'DenseNet bs8', 'DenseNet']
 batch_size_workloads_col = {'VGG x1': 0, 'VGG bs4': 1, 'VGG bs8': 2, 'VGG': 3, 'VGG bs32': 4,
-                            'Inception V3 x1': 0, 'InceptionV3 bs4': 1, 'InceptionV3 bs8': 2, 'Inception V3': 3, 'InceptionV3 bs32': 4,
-                            'Inception V4 x1': 0, 'InceptionV4 bs4': 1, 'InceptionV4 bs8': 2, 'Inception V4': 3,
+                            'Inception V3 x1': 0, 'Inception V3 bs4': 1, 'Inception V3 bs8': 2, 'Inception V3': 3, 'Inception V3 bs32': 4,
+                            'Inception V4 x1': 0, 'Inception V4 bs4': 1, 'Inception V4 bs8': 2, 'Inception V4': 3,
                             'ResNet x1': 0, 'ResNet50 bs4': 1, 'ResNet50 bs8': 2, 'ResNet': 3, 'ResNet50 bs32': 4,
                             'DenseNet x1': 0, 'DenseNet bs4': 1, 'DenseNet bs8': 2, 'DenseNet': 3}
 title = ['saved_ratio', 'extra_overhead', 'vanilla_max_memory_used', 'schedule_max_memory_used', 'vanilla_time_cost', 'schedule_time_cost', 'efficiency']
@@ -72,16 +79,22 @@ if __name__ == '__main__':
     df.to_csv('SingleWorkloads.csv')
 
     # multi_workloads
-    MSR = np.zeros((15, 3))
-    EOR = np.zeros((15, 3))
-    CBR = np.zeros((15, 3))
+    MSR = np.zeros((15, 4))
+    EOR = np.zeros((15, 4))
+    CBR = np.zeros((15, 4))
+    MSR_cold_start = np.zeros((15, 4))
+    CBR_cold_start = np.zeros((15, 4))
+
     # TENSILE
     for file in multi_workloads:
-        path = os.path.join(file, 'repeat_3_result.txt')
+        if 'MDW' in file:
+            path = os.path.join(file, 'repeat_10_result.txt')
+        else:
+            path = os.path.join(file, 'repeat_3_result.txt')
         with open(path, 'r') as f:
             lines = f.readlines()
         for i, line in enumerate(lines):
-            if i == 0 or i == 1 or i == 6:
+            if i == 0 or i == 1 or i == 6 or i == 9 or i == 11:
                 assert title[i] in line
                 temp = line.replace(title[i] + ':', '')
                 mean = format(float(temp.split(' ')[0]), '.4f')
@@ -92,6 +105,8 @@ if __name__ == '__main__':
                     col = 1
                 elif 'x3' in path:
                     col = 2
+                elif 'MDW' in path:
+                    col = 3
                 else:
                     raise Exception(f'unsupported workload:{path}')
                 if i == 0:
@@ -100,6 +115,10 @@ if __name__ == '__main__':
                     EOR[row, col] = mean
                 elif i == 6:
                     CBR[row, col] = mean
+                elif i == 9:
+                    MSR_cold_start[row, col] = mean
+                elif i == 11:
+                    CBR_cold_start[row, col] = mean
     # vDNN&Capuchin
     for file in baseline_multi_workloads:
         path = os.path.join(baseline_path, file, 'result.txt')
@@ -109,6 +128,7 @@ if __name__ == '__main__':
             assert baseline_title[i] in line
             temp = line.replace(baseline_title[i] + ':', '')
             mean = format(float(temp.split(' ')[0]), '.4f')
+            # todo: MDW
             # 分隔
             if i == 3 or i == 10:
                 continue

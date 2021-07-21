@@ -179,7 +179,7 @@ class DenseNet121():
         b1_val = ndarray.array(np.random.normal(loc=0, scale=0.1, size=(n_class)), executor_ctx)
 
         executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue,
-                                         top_message_queue=top_message_queue, log_path=self.log_path, **kwargs)
+                                    top_message_queue=top_message_queue, log_path=self.log_path)
 
         feed_dict = {W0: W0_val, W1: W1_val, b1: b1_val}
         feed_dict.update(dict_1)
@@ -208,7 +208,7 @@ class DenseNet121():
             feed_dict[X] = ndarray.array(X_val, ctx=executor_ctx)
             feed_dict[y_] = ndarray.array(y_val, ctx=executor_ctx)
             executor.init_operator_latency(feed_dict_sample=feed_dict, **kwargs)
-        gpu_record_cold_start = GPURecord(self.log_path,suffix='_cold_start')
+        gpu_record_cold_start = GPURecord(self.log_path, suffix='_cold_start')
         gpu_record = GPURecord(self.log_path)
         if self.job_id == 0:
             f1 = open(f"{self.log_path}/gpu_time.txt", "w+")
@@ -281,3 +281,7 @@ def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
                 main(path, repeat, jobs_num, batch_size, DenseNet121, **kwargs)
         if analysis_result:
             get_result(raw_path, repeat)
+
+
+if __name__ == '__main__':
+    run_exp([['./log/Inception V3 bs4/', 3, 1, 4]])
