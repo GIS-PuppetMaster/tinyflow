@@ -369,8 +369,8 @@ class Inceptionv4():
         feed_dict[y_] = y_val
         executor.init_operator_latency(feed_dict_sample=feed_dict, **kwargs)
         return executor.predict_results
-    
-    def run(self, executor_ctx, n_class, top_control_queue, top_message_queue, X_val, y_val, **kwargs):
+
+    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, **kwargs):
         self.n_class = n_class
         self.top_control_queue = top_control_queue
         self.top_message_queue = top_message_queue
