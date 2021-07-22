@@ -29,28 +29,24 @@ class MemoryManager(threading.Thread):
             move_to_gpu = node[1]
             node_ndarray_new = None
 
-            global swap_in_id
             global index_to_cpu_map
             global index_to_gpu_map
             global swap_in_flag
+            global swap_in_id
 
 
             if move_to_gpu == 0:
-                # print("free",node_index)
-                # print(index_to_gpu_map[node_index].asnumpy())
                 node_ndarray = index_to_gpu_map[node_index]
                 node_ndarray.copyto(index_to_cpu_map[node_index], self.cudaSwapStream)
                 index_to_cpu_flag[node_index] = True
                 # index_to_gpu_map[node_index].free_gpu()
                 index_to_gpu_map[node_index] = None
-                # print("swap finish: node " + str(node_index) + " to " + str(move_to_gpu))
 
             else:
                 swap_in_flag = True
                 swap_in_id = node_index
                 node_ndarray = index_to_cpu_map[node_index]
                 # time1 = datetime.datetime.now()
-
                 node_ndarray_new = ndarray.empty(node_ndarray.shape, self.gpu_ctx)
                 # time2 = datetime.datetime.now()
                 if isinstance(node_ndarray_new,int):
@@ -63,8 +59,6 @@ class MemoryManager(threading.Thread):
                         index_to_cpu_flag[node_index] = False
                     else:
                         print("swap in 和 passive import 重合")
-                # print("swap finish: node " + str(node_index) + " to " + str(move_to_gpu))
-                # print((time2 - time1).microseconds)
 
 
 class TrainExecutor(object):
@@ -116,7 +110,6 @@ class TrainExecutor(object):
         self.memoryManager.start()
         for i in range(len(self.topo_order)):
             self.topo_order[i].index = i
-
         # 日志记录
         self.start_finish_time = 0
         self.hit_count = 0
@@ -148,7 +141,6 @@ class TrainExecutor(object):
                 node.memory = 4 * mem
                 continue
 
-            # print(node)
             input_shapes = [self.node_to_shape_map[i] for i in node.inputs]
             assert None not in input_shapes
             self.node_to_shape_map[node] = node.op.infer_shape(node, input_shapes, self.cudnnHandle)
@@ -156,7 +148,6 @@ class TrainExecutor(object):
             for i in range(0, len(self.node_to_shape_map[node])):
                 mem = mem * self.node_to_shape_map[node][i]
             node.memory = 4 * mem
-            # print(self.node_to_shape_map[node])
 
     # 放出变量的np字典
     def init_Variable(self, feed_dict):
@@ -174,7 +165,6 @@ class TrainExecutor(object):
         global index_to_cpu_flag
         global swap_in_flag
         global swap_in_id
-
         if self.isfirstrun == 0:
             pciin, pciout = gpu_op.testPcie()
             pciin = pciin * 1024
@@ -214,11 +204,7 @@ class TrainExecutor(object):
             for idx in range(len(self.topo_order)):
 
                 node = self.topo_order[idx]
-                # print(node, idx)
-                # print("inputs")
-                # for n in node.inputs:
-                #     print(n)
-                # print(i,node.name)
+
 
                 # 已经被计算过了
                 if node in node_computed:
@@ -236,7 +222,7 @@ class TrainExecutor(object):
                     # value都存在self.node_to_arr_map
                     index_to_gpu_map[idx]= ret
                     node.array_status = 1
-                    node_computed.add(node)
+                    # node_computed.add(node)
                     continue
 
                 # 不是SgdOp,申请内存
@@ -250,8 +236,8 @@ class TrainExecutor(object):
                         self.getpeekaccess()
                         need_tomem += ret
                         ret=self.tensors_evict(ret,node,node)
-                    # 此时ret为ndarray
-                    # value都存在self.node_to_arr_map
+                    # # 此时ret为ndarray
+                    # # value都存在self.node_to_arr_map
                     index_to_gpu_map[idx] = ret
                     node.rp_time += (t2 - t1)
                     node.array_status = 1
@@ -259,11 +245,10 @@ class TrainExecutor(object):
                     # 是SgdOp,不申请内存
                     index_to_gpu_map[idx] = None
 
-                # print("开始")
                 input_vals = []
                 for n in node.inputs:
                     self.tensor_accsess(n)
-                    while n.array_status==0:
+                    if n.array_status==0:
                         if index_to_cpu_flag[n.index]==False:
                             continue
                         ret = ndarray.empty(self.node_to_shape_map[n], self.ctx)
@@ -278,12 +263,13 @@ class TrainExecutor(object):
                     input_vals.append(index_to_gpu_map[n.index])
 
 
-
                 # 除了SgdOp，其他的点此时要保证在gpu中
                 node_val = index_to_gpu_map[idx]
+
                 tic = time.time()
                 memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
                 toc = time.time()
+
                 if memorytoSaving != 0:
                     self.getpeekaccess()
                     need_tomem += memorytoSaving
@@ -306,14 +292,13 @@ class TrainExecutor(object):
                             break
                         dnode = self.topo_order[i]
                         if self.isevict(dnode, node):
+                            need_tomem+=dnode.memory
                             self.tensor_evict(dnode)
                             self.arrive_to_cpu(dnode)
                 # 此点被计算过了
                 node_computed.add(node)
                 node.rp_time += (toc - tic)
                 node.MSPS = node.memory / node.rp_time
-
-
             endtime = time.time()
             # 得到ft
             for i in range(len(self.topo_order)):
@@ -341,11 +326,13 @@ class TrainExecutor(object):
             self.clear()
             #不是第一次了
             self.isfirstrun = 1
+
             return []
 
 
 
         else:
+            time1=time.time()
             node_computed = set()
             for idx in range(len(self.topo_order)):
                 node = self.topo_order[idx]
@@ -355,22 +342,13 @@ class TrainExecutor(object):
                 # 是inputs
                 if node in feed_dict.keys():
 
-                    # 如果此时在gpu中,把np的值赋值过去
-                    if index_to_gpu_map[idx]!=None:
-                        index_to_gpu_map[idx]._sync_copyfrom(feed_dict[node])
-                    else:
-                        # 没在GPU中,重新在GPU申请空间
-                        ret = ndarray.array(feed_dict[node], ctx=self.ctx)
-                        if isinstance(ret, int):
-                            ret = self.tensors_evict(ret, node, node, feed_dict[node],flag=False)
-                        # 此时ret为ndarray
-                        # value都存在self.node_to_arr_map
-                        index_to_gpu_map[idx] = ret
-                        index_to_gpu_map[idx]._sync_copyfrom(feed_dict[node])
-                        node.array_status = 1
-                        index_to_cpu_flag[idx]=False
+                    ret = ndarray.array(feed_dict[node], ctx=self.ctx)
+                    if isinstance(ret, int):
+                        ret = self.tensors_evict(ret, node, node, feed_dict[node],flag=False)
+                    index_to_gpu_map[idx] = ret
+                    node.array_status = 1
+                    index_to_cpu_flag[idx]=False
 
-                    node_computed.add(node)
                     continue
 
                 # 如果node是变量，不用管
@@ -418,14 +396,11 @@ class TrainExecutor(object):
                     # value都存在self.node_to_arr_map
                     index_to_gpu_map[idx] = ret
                     node.array_status = 1
-                    if index_to_cpu_flag[idx] != False:
-                        print("出错了")
 
                 input_vals = []
                 for input_node in node.inputs:
                     policy = self.policy_run(input_node)
                     prior_policy = self.prior_policy_run(input_node, node)
-
                     if input_node.array_status == 0:
                         self.arrive_to_cpu(input_node)
                         ret = ndarray.empty(self.node_to_shape_map[input_node], ctx=self.ctx)
@@ -438,10 +413,16 @@ class TrainExecutor(object):
                         input_node.array_status = 1
                         index_to_cpu_flag[input_node.index] = False
                     input_vals.append(index_to_gpu_map[input_node.index])
+
                     if policy == 1 or prior_policy == 1:
                         self.tensor_evict(input_node)
                     elif prior_policy == 3:
                         self.tensor_free(input_node)
+                    elif input_node.isw == 0 and (self.capu.tensor_access_list[self.access_index - 1][1] == input_node.access_count):
+
+                        self.tensor_free(input_node)
+
+
                 node_val = index_to_gpu_map[idx]
                 memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
                 if memorytoSaving != 0:
@@ -478,8 +459,10 @@ class TrainExecutor(object):
         self.access_index = 0
         self.reflush_access=[]
         for node in self.topo_order:
-            if  node.isw==0:
+            if  node.isw==0 or node.isw==2:
                 if node.array_status==1:
+                    if index_to_gpu_map[node.index] != None:
+                        index_to_gpu_map[node.index].free_gpu()
                     index_to_gpu_map[node.index]=None
                 index_to_cpu_flag[node.index]=False
             elif node.array_status == 0 and index_to_cpu_flag[node.index]==False:
@@ -487,6 +470,7 @@ class TrainExecutor(object):
 
 
     def policy_run(self, input_node):
+        global swap_in_id
         policy = self.capu.policy[self.access_index]
         if policy == 2:
             swap_id = self.capu.swap[self.access_index]
@@ -495,10 +479,12 @@ class TrainExecutor(object):
                 self.arrive_to_cpu(swap_node)
                 self.will_do_queue.put((swap_id,1))
                 swap_node.array_status = 1
-                self.reflush_access.append(self.access_index)
+            swap_in_id=swap_id
+            self.reflush_access.append(self.access_index)
         elif policy == 5:
-            if index_to_cpu_flag[input_node.index] != False or swap_in_id != input_node.index:
+            if index_to_cpu_flag[input_node.index] != False :
                 while index_to_cpu_flag[input_node.index] != False or swap_in_id != input_node.index:
+
                     if input_node.array_status == 0:
                         self.reflush_access.pop()
                         break
@@ -528,7 +514,6 @@ class TrainExecutor(object):
                 index_to_cpu_flag[input_node.index] = False
         elif prior_policy == 4:
             self.recompute(input_node,node)
-
         self.access_index += 1
         return prior_policy
 
@@ -565,7 +550,7 @@ class TrainExecutor(object):
                     while True:
                         if index_to_cpu_flag[n.index] == False and swap_in_id == n.index:
                             break
-                        if swap_in_id == n.index and swap_in_flag == False:
+                        if  swap_in_id == n.index and swap_in_flag == False:
                             n.array_status = 0
                             break
 
@@ -609,7 +594,6 @@ class TrainExecutor(object):
                 if self.isevict(dnode, node):
                     self.tensor_evict(dnode)
                     self.arrive_to_cpu(dnode)
-
     def arrive_to_cpu(self, n):
         while index_to_cpu_flag[n.index]!=True:
             continue
@@ -681,9 +665,14 @@ class TrainExecutor(object):
     def getpeekaccess(self):
         for i in range(len(self.topo_order)):
             if (self.topo_order[i].array_status == 1):
+
                 self.topo_order[i].peekaccess.append(self.topo_order[i].access_count)
 
     def destroy_cudaStream(self):
+        for node in self.topo_order:
+            if index_to_gpu_map[node.index] != None:
+                index_to_gpu_map[node.index].free_gpu()
+            index_to_gpu_map[node.index] = None
         gpu_op.destroy_cublasHandle(self.cublasHandle)
         gpu_op.destroy_cudnnHandle(self.cudnnHandle)
         gpu_op.destroy_cudaStream(self.cudaStream)
