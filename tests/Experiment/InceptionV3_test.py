@@ -1,5 +1,7 @@
 import numpy as np
 import imp, os,datetime
+
+from pycode.tinyflow import ndarray
 from tests.Experiment import record_GPU
 from multiprocessing import Process
 tinyflow_path = "../../pycode/tinyflow/"
@@ -595,10 +597,27 @@ class Inceptionv3(Process):
 
         return 0
     def run(self):
-         record = record_GPU.record("InceptionV3", self.type, self.gpu_num, self.path, self.file_name)
-         record.start()
-         print("InceptionV3" + " type" + str(self.type) + " start")
+        if self.need_tosave != 0:
+            outspace = []
+            arr_size = self.need_tosave * 1e6 / 4
+            gctx = ndarray.gpu(0)
+            while arr_size > 0:
+                if arr_size > 10000 * 10000:
+                    outspace.append(ndarray.array(np.ones((10000, 10000)) * 0.01, ctx=gctx))
+                    arr_size -= 10000 * 10000
+                else:
+                    need_sqrt = int(pow(arr_size, 0.5))
+                    if need_sqrt <= 0:
+                        break
+                    outspace.append(ndarray.array(np.ones((need_sqrt, need_sqrt)) * 0.01, ctx=gctx))
+                    arr_size -= need_sqrt * need_sqrt
+        record = record_GPU.record("InceptionV3", self.type, self.gpu_num, self.path, self.file_name)
+        record.start()
+        print("InceptionV3" + " type" + str(self.type) + " start")
 
-         self.inception_v3()
-         print("InceptionV3" + " type" + str(self.type) + " finish")
-         record.stop()
+        self.inception_v3()
+        print("InceptionV3" + " type" + str(self.type) + " finish")
+        record.stop()
+        if self.need_tosave != 0:
+            for i in range(len(outspace) - 1, -1, -1):
+                outspace.pop(i)

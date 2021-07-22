@@ -2,6 +2,8 @@
 # from pycode.tinyflow import gpu_op, train, ndarray, TrainExecute, TrainExecute_Adam_vDNNconv
 import numpy as np
 import imp, os, datetime
+
+from pycode.tinyflow import ndarray
 from tests.Experiment import record_GPU
 from multiprocessing import Process
 
@@ -167,7 +169,20 @@ class DenseNet121(Process):
         self.f7.close()
 
     def run(self):
-
+        if self.need_tosave != 0:
+            outspace = []
+            arr_size = self.need_tosave * 1e6 / 4
+            gctx = ndarray.gpu(0)
+            while arr_size > 0:
+                if arr_size > 10000 * 10000:
+                    outspace.append(ndarray.array(np.ones((10000, 10000)) * 0.01, ctx=gctx))
+                    arr_size -= 10000 * 10000
+                else:
+                    need_sqrt = int(pow(arr_size, 0.5))
+                    if need_sqrt <= 0:
+                        break
+                    outspace.append(ndarray.array(np.ones((need_sqrt, need_sqrt)) * 0.01, ctx=gctx))
+                    arr_size -= need_sqrt * need_sqrt
         X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224
         y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
 
@@ -181,3 +196,6 @@ class DenseNet121(Process):
         print("DenseNet" + " type" + str(self.type) + " finish")
 
         record.stop()
+        if self.need_tosave != 0:
+            for i in range(len(outspace) - 1, -1, -1):
+                outspace.pop(i)
