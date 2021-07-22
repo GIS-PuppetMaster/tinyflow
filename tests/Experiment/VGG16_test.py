@@ -1,4 +1,3 @@
-import six.moves.cPickle as pickle
 import numpy as np
 import random, imp, threading, time, os, gzip, datetime, sys
 from tests.Experiment import record_GPU
@@ -8,6 +7,7 @@ tinyflow_path = "../../pycode/tinyflow/"
 
 class VGG16(threading.Thread):
     def __init__(self, num_step, type, batch_size, gpu_num, path, file_name, n_class, need_tosave=None):
+        self.type=type
         self.need_tosave = need_tosave
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_num)
         self.gpu_num = gpu_num
@@ -159,25 +159,27 @@ class VGG16(threading.Thread):
         # for i in range(16):
         #     b_val[i] = ndarray.array(b_val[i], ctx)
         aph = 0.001
-        if self.is_capu == True and self.need_tosave != None:
-            t = self.TrainExecute.TrainExecutor(self.loss, aph, self.need_tosave)
+        if self.is_capu == True :
+            t = self.TrainExecute.TrainExecutor(self.loss, aph)
+
         else:
+
             t = self.TrainExecute.TrainExecutor(self.loss, aph)
         t.init_Variable(self.feed_dict)
         print('run')
         start_time = datetime.datetime.now()
-        for i in range(num_step):
-            # time1 = datetime.datetime.now()
 
+        for i in range(num_step):
+            time1 = datetime.datetime.now()
             t.run({self.X: X_val, self.y_: y_val})
 
-            # time2 = datetime.datetime.now()
+            time2 = datetime.datetime.now()
 
-            # print("epoch", i + 1, "use", time2 - time1
-            #       , "\tstart", time1, "\tend", time2, file=self.f1)
+            print("epoch", i + 1, "use", time2 - time1
+                  , "\tstart", time1, "\tend", time2, file=self.f1)
             print("VGG16 num_step", i)
-        start_finish_time = datetime.datetime.now()
-        print((start_finish_time-start_time).total_seconds(), file=self.f3)
+        start_finish_time = t.get_start_finish_time()
+        print((start_finish_time-start_time).microseconds, file=self.f3)
         hit_count, swap_count = t.get_hit()
         print("hit_count ", hit_count, "\nswap_count", swap_count, file=self.f6)
         node_order = t.get_node_order()

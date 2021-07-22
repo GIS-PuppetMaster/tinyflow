@@ -9,7 +9,7 @@ import random, time
 
 from tests.Experiment.log.result import get_result, get_vanilla_max_memory
 import pickle as pkl
-
+import time
 gpu = 1
 os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
 
@@ -63,11 +63,11 @@ def Experiment1():
             3: {2: 0.31907608729118836}
         }
     }
-    for net_id in range(5):
-        repeat_times = 3
+    for net_id in range(1, 5):
+        repeat_times = 1
         print("Experiment1 start")
         net_name = net_names[net_id]
-        for i, num_net in enumerate([1]):
+        for i, num_net in enumerate([1,1, 2, 3]):
             # if net_id == 2 and i != 3:
             #     continue
             if i == 0:
@@ -89,9 +89,9 @@ def Experiment1():
             need_tosave_list = []
             for t in range(repeat_times):
                 print(f'repeat_times:{t}')
-                for type in range(3):  # type是调度方式的选择, 0.不调度，1.capuchin 2.vdnn
-                    # if type!=1:
-                    #     continue
+                for type in range(3):  # type是调度方式的选择, 0.不调度 1.capuchin 2.vdnn
+                    if type==2:
+                        continue
                     need_tosave = 0
                     if type == 1:
                         bud = vanilla_max_memory * (1 - budget[net_name][num_net][batch_size])
@@ -116,16 +116,16 @@ def Experiment1():
                                 size -= need_sqrt * need_sqrt
                         print('finish extra matrix generation')
                     job_pool = [
-                        generate_job(num_step=50, net_id=net_id, type=type, batch_size=batch_size, path=path, file_name=f"_repeat_time={t}_net_order={i}", need_tosave=need_tosave) for
+                        generate_job(num_step=5, net_id=net_id, type=type, batch_size=batch_size, path=path, file_name=f"_repeat_time={t}_net_order={i}", need_tosave=need_tosave) for
                         i, net_id in enumerate(nets)]
                     for job in job_pool:
                         job.start()
                     for job in job_pool:
                         job.join()
-                    if type == 1:
-                        for i in range(len(outspace) - 1, -1, -1):
-                            outspace.pop(i)
-                            # m.free_gpu()
+                    # if type == 1:
+                    #     for i in range(len(outspace) - 1, -1, -1):
+                    #         outspace.pop(i)
+                    #         # m.free_gpu()
                     if type == 0:
                         vanilla_max_memory = get_vanilla_max_memory(path, repeat_times=repeat_times)
                         # info.update({net_id: {i: {t: vanilla_max_memory}}})

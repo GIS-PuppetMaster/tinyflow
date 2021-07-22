@@ -339,6 +339,8 @@ class TrainExecutor(object):
                     if node_input.refcnt == 0:
                         while(index_to_cpu_flag[node_input.index] == False):
                             continue
+                        index_to_gpu_map[node_input.index].free_gpu()
+                        index_to_gpu_map[node_input.index] = None
 
             # 把非参数的node置为不存在, 清除gpu上非参数部分没用的值
             for node in self.topo_order:
@@ -473,6 +475,8 @@ class TrainExecutor(object):
                     if node_input.refcnt == 0:
                         while (index_to_cpu_flag[node_input.index] == False):
                             continue
+                        index_to_gpu_map[node_input.index].free_gpu()
+                        index_to_gpu_map[node_input.index] = None
 
 
             # 把非参数的node置为不存在, 清除gpu上非参数部分没用的值
@@ -498,10 +502,13 @@ class TrainExecutor(object):
         return self.node_order
 
     def destroy_cudaStream(self):
+        for node in self.topo_order:
+            if index_to_gpu_map[node.index] != None:
+                index_to_gpu_map[node.index].free_gpu()
+            index_to_gpu_map[node.index] = None
         gpu_op.destroy_cublasHandle(self.cublasHandle)
         gpu_op.destroy_cudnnHandle(self.cudnnHandle)
         gpu_op.destroy_cudaStream(self.cudaStream)
-
 
 
 

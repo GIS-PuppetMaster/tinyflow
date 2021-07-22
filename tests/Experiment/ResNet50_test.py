@@ -207,8 +207,8 @@ class ResNet50(threading.Thread):
             # print("epoch", i + 1, "use", time2 - time1
             #       , "\tstart", time1, "\tend", time2, file=self.f1)
             print("ResNet num_step", i)
-        start_finish_time = datetime.datetime.now()
-        print((start_finish_time-start_time).total_seconds(), file=self.f3)
+        start_finish_time = t.get_start_finish_time()
+        print((start_finish_time-start_time).microseconds, file=self.f3)
         hit_count, swap_count = t.get_hit()
         print("hit_count ", hit_count, "\nswap_count", swap_count, file=self.f6)
         node_order = t.get_node_order()

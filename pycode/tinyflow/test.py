@@ -1,65 +1,52 @@
-import os
-import sys
+""" library to take autodiff and execute a computation graph """
+from __future__ import absolute_import
 
+import threading
+import time
 import numpy as np
-from pycode.tinyflow import ndarray
+import random
+import queue
+import datetime
+import time
+import numpy as np
+from pycode.tinyflow import ndarray, gpu_op, memoryManager, memoryManagerController
+import random
+import queue
 
-sys.path.append('../../')
-from tests.Experiment import VGG16_test, ResNet50_test, DenseNet_test, InceptionV3_test, InceptionV4_test
-import random, time
+# rand = np.random.RandomState(seed=123)
+# W1_val = np.ones((78400, 4560))
+# ctx_gpu = ndarray.gpu(0)
+# ctx_cpu = ndarray.cpu(0)
+# list_w1 = []
+#
+# w1 = ndarray.array(W1_val, ctx_cpu)
+# w2 = ndarray.empty(w1.shape, ctx_gpu)
+# w1.copyto(w2)
+# print(w2.asnumpy())
+# t1 = time.time()
+#
+# for i in range(100):
+#     w1.copyto(w2)
+#     t2 = time.time()
+#     print(t2 - t1)
+# print("success")
+# for i in range(100):
+#     list_w1.append(ndarray.array(W1_val, ctx_gpu))
+#     del list_w1[i]
 
-from tests.Experiment.log.result import get_result, get_vanilla_max_memory
-import pickle as pkl
-from line_profiler import LineProfiler
-from pycode.tinyflow.TrainExecuteAdam_vDNNconv import TrainExecutor as vdnnExecutor
-from pycode.tinyflow.TrainExecuteAdam_Capu import TrainExecutor as CapuchinExecutor
-from pycode.tinyflow.TrainExecuteAdam import TrainExecutor as VanillaTrainExecutor
+# time.sleep(10)
 
-gpu = 3
-os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
-
-t = 1
+cudaStream = gpu_op.create_cudaStream()
+ctx_cpu = ndarray.cpu(0)
+ctx_gpu = ndarray.gpu(0)
+w1_np = np.ones((10000, 10000), dtype=np.float32)
+w1 = ndarray.array(w1_np, ctx_cpu)
+w2 = ndarray.empty((10000, 10000), ctx_gpu)
 
 
-def main():
-    vgg16 = VGG16_test.VGG16(num_step=50, type=t, batch_size=16, gpu_num=gpu, path='test', file_name='test', n_class=1000, need_tosave=0)
-    vgg16.run()
+t1 = datetime.datetime.now()
+w1.copyto(w2, cudaStream)
+t2 = datetime.datetime.now()
+print(w2.asnumpy())
+print((t2 - t1).microseconds)
 
-
-if __name__ == '__main__':
-    profiler = LineProfiler()
-    if t == 0:
-        profiler.add_function(VanillaTrainExecutor.run)
-    elif t == 1:
-        vanilla_max_memory = 3218.875
-        bud = vanilla_max_memory * (1 - 0.3520873066327611)
-        # 总显存=预算+need_tosave(额外占用空间)
-        need_tosave = 11019 - bud
-        # if net_id == 2 and i == 3:
-        #     need_tosave -= 500
-        print(f'need_tosave:{need_tosave}')
-        need_tosave_list = []
-        need_tosave_list.append(need_tosave)
-        outspace = []
-        size = need_tosave * 1e6 / 4
-        gctx = ndarray.gpu(0)
-        while size > 0:
-            if size > 10000 * 10000:
-                outspace.append(ndarray.array(np.ones((10000, 10000)) * 0.01, ctx=gctx))
-                size -= 10000 * 10000
-            else:
-                need_sqrt = int(pow(size, 0.5))
-                if need_sqrt <= 0:
-                    break
-                outspace.append(ndarray.array(np.ones((need_sqrt, need_sqrt)) * 0.01, ctx=gctx))
-                size -= need_sqrt * need_sqrt
-        print('finish extra matrix generation')
-        profiler.add_function(CapuchinExecutor.run)
-        profiler.add_function(CapuchinExecutor.clear)
-    else:
-        profiler.add_function(vdnnExecutor.run)
-
-    profiler_wrapper = profiler(main)
-    res = profiler_wrapper()
-    profiler.print_stats()
-    # main()
