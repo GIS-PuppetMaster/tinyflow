@@ -2,6 +2,7 @@ import os
 import sys
 
 import numpy as np
+
 sys.path.append('../../')
 from pycode.tinyflow import ndarray
 from tests.Experiment import VGG16_test, ResNet50_test, DenseNet_test, InceptionV3_test, InceptionV4_test
@@ -10,6 +11,7 @@ import random, time
 from tests.Experiment.log.result import get_result, get_vanilla_max_memory
 import pickle as pkl
 import time
+
 gpu = 1
 os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
 
@@ -63,13 +65,13 @@ def Experiment1():
             3: {2: 0.31907608729118836}
         }
     }
-    for net_id in range(1, 5):
+    for net_id in range(5):
         repeat_times = 1
         print("Experiment1 start")
         net_name = net_names[net_id]
-        for i, num_net in enumerate([1,1, 2, 3]):
-            # if net_id == 2 and i != 3:
-            #     continue
+        for i, num_net in enumerate([1, 1, 2, 3]):
+            if i != 2:
+                continue
             if i == 0:
                 batch_size = 16
                 net_name_ = net_name
@@ -85,12 +87,12 @@ def Experiment1():
                 # net_id = random.randint(0, 4) #net_id随机选取网络种类 0:vgg16, 1:inceptionv3, 2:inceptionv4, 3:resNet, 4:denseNet
                 nets.append(net_id)
             print("选取的网络", list(map(lambda x: net_names[x], nets)))
-            vanilla_max_memory = 0
+            vanilla_max_memory = 8000
             need_tosave_list = []
             for t in range(repeat_times):
                 print(f'repeat_times:{t}')
                 for type in range(3):  # type是调度方式的选择, 0.不调度 1.capuchin 2.vdnn
-                    if type==2:
+                    if type != 2:
                         continue
                     need_tosave = 0
                     if type == 1:

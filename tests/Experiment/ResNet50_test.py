@@ -1,18 +1,18 @@
 import numpy as np
-import imp, threading, datetime
+import imp, datetime
+from multiprocessing import Process
 from tests.Experiment import record_GPU
 import os
 
 tinyflow_path = "../../pycode/tinyflow/"
 
 
-class ResNet50(threading.Thread):
+class ResNet50(Process):
     def __init__(self, num_step, type, batch_size, gpu_num, path, file_name, need_tosave=None):
+        super().__init__()
         self.need_tosave = need_tosave
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_num)
         self.gpu_num = gpu_num
-
-        threading.Thread.__init__(self)
         self.dropout_rate = 0.5
         self.image_channel = 3
         self.num_step = num_step

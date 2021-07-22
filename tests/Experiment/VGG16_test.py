@@ -1,17 +1,18 @@
 import numpy as np
-import random, imp, threading, time, os, gzip, datetime, sys
+import random, imp, time, os, gzip, datetime, sys
+from multiprocessing import Process
 from tests.Experiment import record_GPU
 
 tinyflow_path = "../../pycode/tinyflow/"
 
 
-class VGG16(threading.Thread):
+class VGG16(Process):
     def __init__(self, num_step, type, batch_size, gpu_num, path, file_name, n_class, need_tosave=None):
+        super().__init__()
         self.type=type
         self.need_tosave = need_tosave
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_num)
         self.gpu_num = gpu_num
-        threading.Thread.__init__(self)
         self.dropout_rate = 0.5
         self.image_channel = 3
         self.image_size = 224
@@ -161,9 +162,7 @@ class VGG16(threading.Thread):
         aph = 0.001
         if self.is_capu == True :
             t = self.TrainExecute.TrainExecutor(self.loss, aph)
-
         else:
-
             t = self.TrainExecute.TrainExecutor(self.loss, aph)
         t.init_Variable(self.feed_dict)
         print('run')

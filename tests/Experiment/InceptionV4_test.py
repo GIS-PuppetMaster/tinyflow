@@ -1,17 +1,17 @@
 import numpy as np
-import imp, os, threading, datetime
+import imp, os, datetime
 from tests.Experiment import record_GPU
+from multiprocessing import Process
 
 tinyflow_path = "../../pycode/tinyflow/"
 
 
-class Inceptionv4(threading.Thread):
+class Inceptionv4(Process):
     def __init__(self, num_step, type, batch_size, gpu_num, path, file_name, need_tosave=None):
+        super().__init__()
         self.need_tosave = need_tosave
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_num)
         self.gpu_num = gpu_num
-
-        threading.Thread.__init__(self)
         self.n_filter = 32  # growth rate
         self.image_channel = 3
         self.dropout_rate = 0.2
