@@ -1,5 +1,7 @@
+import multiprocessing
 import os
 import sys
+from multiprocessing import Process
 
 import numpy as np
 
@@ -62,6 +64,30 @@ def generate_job(num_step, net_id, type, batch_size, path, need_tosave, file_nam
         return denseNet
 
 
+def create_extra_matrix(need_tosave, pipe1, pipe2):
+    outspace = []
+    arr_size = need_tosave * 1e6 / 4
+    gctx = ndarray.gpu(0)
+    while arr_size > 0:
+        if arr_size > 10000 * 10000:
+            outspace.append(ndarray.array(np.ones((10000, 10000)) * 0.01, ctx=gctx))
+            arr_size -= 10000 * 10000
+        else:
+            need_sqrt = int(pow(arr_size, 0.5))
+            if need_sqrt <= 0:
+                break
+            outspace.append(ndarray.array(np.ones((need_sqrt, need_sqrt)) * 0.01, ctx=gctx))
+            arr_size -= need_sqrt * need_sqrt
+    print('finish extra matrix generation')
+    pipe1.put(True)
+    while True:
+        if not pipe2.empty():
+            if pipe2.get():
+                break
+    for i in range(len(outspace) - 1, -1, -1):
+        outspace.pop(i)
+
+
 def Experiment1():
     for net_id in range(5):
         repeat_times = 3
@@ -95,13 +121,26 @@ def Experiment1():
                         need_tosave = 11019 - bud
                         print(f'need_tosave:{need_tosave}')
                         need_tosave_list.append(need_tosave)
-                    job_pool = [
-                        generate_job(num_step=50, net_id=net_id, type=type, batch_size=batch_size, path=path, file_name=f"_repeat_time={t}_net_order={i}", need_tosave=need_tosave) for
-                        i, net_id in enumerate(nets)]
+                        pipe1 = multiprocessing.Queue()
+                        pipe2 = multiprocessing.Queue()
+                        p = Process(target=create_extra_matrix, args=(need_tosave, pipe1, pipe2))
+                        p.start()
+                        while True:
+                            if not pipe1.empty():
+                                if pipe1.get():
+                                    break
+                    job_pool = []
+                    for i, net_id in enumerate(nets):
+                        job_pool.append(generate_job(num_step=50, net_id=net_id, type=type, batch_size=batch_size, path=path, file_name=f"_repeat_time={t}_net_order={i}", need_tosave=0))
                     for job in job_pool:
                         job.start()
                     for job in job_pool:
                         job.join()
+                    if type == 1:
+                        pipe2.put(True)
+                        p.join()
+                        pipe1.close()
+                        pipe2.close()
                     if type == 0:
                         vanilla_max_memory = get_vanilla_max_memory(path, repeat_times=repeat_times)
             get_result(path, repeat_times=repeat_times, need_tosave=need_tosave_list)
