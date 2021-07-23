@@ -178,10 +178,10 @@ class VGG16(Process):
 
             print("epoch", i + 1, "use", (time2 - time1).total_seconds()
                   , "\tstart", time1, "\tend", time2, file=self.f1)
-            print(f"VGG16 num_step {i} time_cost:{time2-time1}")
+            # print(f"VGG16 num_step {i} time_cost:{time2-time1}")
         start_finish_time = datetime.datetime.now()
         print((start_finish_time - start_time).total_seconds(), file=self.f3)
-        print(f'time_cost:{(start_finish_time-start_time).total_seconds()}')
+        # print(f'time_cost:{(start_finish_time-start_time).total_seconds()}')
         hit_count, swap_count = t.get_hit()
         print("hit_count ", hit_count, "\nswap_count", swap_count, file=self.f6)
         node_order = t.get_node_order()

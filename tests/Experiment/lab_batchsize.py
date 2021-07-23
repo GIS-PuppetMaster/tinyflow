@@ -5,6 +5,7 @@ from tests.Experiment import VGG16_test, ResNet50_test, DenseNet_test, Inception
 import random, time
 
 from tests.Experiment.log.result import get_result
+from lab1 import budget, net_names
 
 gpu = 1
 
@@ -28,42 +29,6 @@ def generate_job(num_step, net_id, type, batch_size, path, need_tosave, file_nam
 
 
 def Experiment2():
-    net_names = ['VGG', 'InceptionV3', 'InceptionV4', 'ResNet', 'DenseNet']
-    budget = {
-        'VGG': {
-            2: 2494.0,
-            4: 2729.33,
-            8: 3229.33,
-            16: 4076.67,
-            32: 6478.67
-        },
-        'Inceptionv3': {
-            2: 1062.0,
-            4: 1145.33,
-            8: 1444.67,
-            16: 2145.33,
-            32: 3441.33,
-        },
-        'Inceptionv4': {
-            2: 1398.0,
-            4: 1353.33,
-            8: 2060.0,
-            16: 3186.67,
-        },
-        'ResNet': {
-            2: 1617.33,
-            4: 1240.0,
-            8: 1315.33,
-            16: 1617.33,
-            32: 2849.33
-        },
-        'DenseNet': {
-            2: 1140.67,
-            4: 1164.0,
-            8: 1280.67,
-            16: 2222.00,
-        }
-    }
     for net_id in range(5):
         repeat_times = 3
         print("Experiment1 start")
@@ -83,6 +48,7 @@ def Experiment2():
                 print(f'repeat_times:{t}')
                 for type in range(3):  # type是调度方式的选择, 0.不调度，1.capuchin 2.vdnn
                     print(f'net: {list(map(lambda x: net_names[x], nets))}, batchsize:{batch_size}')
+                    #TODO: need_tosave and budget
                     job_pool = [generate_job(num_step=50, net_id=net_id, type=type, batch_size=batch_size, path=path, file_name=f"_repeat_time={t}_net_order={i}", need_tosave=budget[net_name][batch_size]) for i, net_id in enumerate(nets)]
                     for job in job_pool:
                         job.start()

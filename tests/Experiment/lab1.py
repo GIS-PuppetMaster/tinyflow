@@ -14,6 +14,34 @@ import time
 
 gpu = 1
 os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+net_names = ['VGG', 'InceptionV3', 'InceptionV4', 'ResNet', 'DenseNet']
+budget = {
+    'VGG': {
+        1: {2: 0.2174494900279348, 16: 0.35648782684120267},
+        2: {2: 0.21485818067033183},
+        3: {2: 0.19819229733851573}
+    },
+    'InceptionV3': {
+        1: {2: 0.31681040272964184, 16: 0.6304005544632028},
+        2: {2: 0.2752777245166674},
+        3: {2: 0.27398579361625057}
+    },
+    'InceptionV4': {
+        1: {2: 0.5019070066423826, 16: 0.6893718558970763},
+        2: {2: 0.46673445779697914},
+        3: {2: 0.4388073557438008}
+    },
+    'ResNet': {
+        1: {2: 0.26281338767444734, 16: 0.7066612562202336},
+        2: {2: 0.342654921731748},
+        3: {2: 0.28701103881578344}
+    },
+    'DenseNet': {
+        1: {2: 0.39732987036657325, 16: 0.7603964692004176},
+        2: {2: 0.24516440969028397},
+        3: {2: 0.20844425426073546}
+    }
+}
 
 
 def generate_job(num_step, net_id, type, batch_size, path, need_tosave, file_name=""):
@@ -35,34 +63,6 @@ def generate_job(num_step, net_id, type, batch_size, path, need_tosave, file_nam
 
 
 def Experiment1():
-    net_names = ['VGG', 'InceptionV3', 'InceptionV4', 'ResNet', 'DenseNet']
-    budget = {
-        'VGG': {
-            1: {2: 0.2174494900279348, 16: 0.35648782684120267},
-            2: {2: 0.21485818067033183},
-            3: {2: 0.19819229733851573}
-        },
-        'InceptionV3': {
-            1: {2: 0.31681040272964184, 16: 0.6304005544632028},
-            2: {2: 0.2752777245166674},
-            3: {2: 0.27398579361625057}
-        },
-        'InceptionV4': {
-            1: {2: 0.5019070066423826, 16: 0.6893718558970763},
-            2: {2: 0.46673445779697914},
-            3: {2: 0.4388073557438008}
-        },
-        'ResNet': {
-            1: {2: 0.26281338767444734, 16: 0.7066612562202336},
-            2: {2: 0.342654921731748},
-            3: {2: 0.28701103881578344}
-        },
-        'DenseNet': {
-            1: {2: 0.39732987036657325, 16: 0.7603964692004176},
-            2: {2: 0.24516440969028397},
-            3: {2: 0.20844425426073546}
-        }
-    }
     for net_id in range(5):
         repeat_times = 3
         print("Experiment1 start")
@@ -88,8 +88,6 @@ def Experiment1():
             for t in range(repeat_times):
                 print(f'repeat_times:{t}')
                 for type in range(3):  # type是调度方式的选择, 0.不调度 1.capuchin 2.vdnn
-                    if type!=2:
-                        continue
                     need_tosave = 0
                     if type == 1:
                         bud = vanilla_max_memory * (1 - budget[net_name][num_net][batch_size])
@@ -108,5 +106,8 @@ def Experiment1():
                         vanilla_max_memory = get_vanilla_max_memory(path, repeat_times=repeat_times)
             get_result(path, repeat_times=repeat_times, need_tosave=need_tosave_list)
             print("Experiment1 finish")
-Experiment1()
+
+
+if __name__ == "__main__":
+    Experiment1()
 # get_result('./log/VGG x2/', repeat_times=3, need_tosave=[0,0,0])
