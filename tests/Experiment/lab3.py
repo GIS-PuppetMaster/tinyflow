@@ -1,12 +1,56 @@
+import datetime
 import os
 import sys
+import threading
+
+import numpy as np
+import pynvml
+
 sys.path.append('../../')
 from tests.Experiment import VGG16_test, ResNet50_test, DenseNet_test, InceptionV3_test, InceptionV4_test
 import random, time
-
+import pickle as pkl
 from tests.Experiment.log.result import get_result
 
 gpu = 1
+
+
+class GPURecord(threading.Thread):
+    def __init__(self, log_path, suffix=""):
+        threading.Thread.__init__(self)
+        pynvml.nvmlInit()
+        GPU = int(os.environ['CUDA_VISIBLE_DEVICES'])
+        self.handle = pynvml.nvmlDeviceGetHandleByIndex(GPU)
+        self.f = open(f"{log_path}/gpu_record{suffix}.txt", "w+")
+        # todo 临时用作释放的计数器
+        self.times = 0
+        self.max_gpu_memory = 0
+        meminfo = pynvml.nvmlDeviceGetMemoryInfo(self.handle)
+        self.base_used = meminfo.used / 1024 ** 2
+        self.flag = True
+
+    def run(self):
+        while self.flag:
+            # if self.times == 30000:
+            #     self.f.close()
+            #     break
+            self.times += 1
+            # time.sleep(0.1)
+            meminfo = pynvml.nvmlDeviceGetMemoryInfo(self.handle)
+            self.memory_used = meminfo.used / 1024 ** 2
+            if self.memory_used > self.max_gpu_memory:
+                self.max_gpu_memory = self.memory_used
+                print("time", datetime.datetime.now(),
+                      "\tmemory", self.memory_used,
+                      "\tmax_memory_used", self.max_gpu_memory,
+                      "\tretained_memory_used", self.memory_used - self.base_used,
+                      "\tretained_max_memory_used", self.max_gpu_memory - self.base_used, file=self.f)  # 已用显存大小
+                self.f.flush()
+
+    def stop(self):
+        self.flag = False
+        time.sleep(0.01)
+        self.f.close()
 
 
 def generate_job(num_step, net_id, type, batch_size, path, need_tosave, file_name=""):
@@ -30,33 +74,106 @@ def generate_job(num_step, net_id, type, batch_size, path, need_tosave, file_nam
 
 def Experiment3():
     net_names = ['VGG', 'InceptionV3', 'InceptionV4', 'ResNet', 'DenseNet']
+    methods = ['vanilla', 'capuchin', 'vdnn']
     repeat_times = 3
-    num_net = 3
+    num_step = 50
     batch_size = 2
     file = open('./log/experiment3_log.txt', 'w+')
-    for exp_id in range(5):
-        nets = []
-        for _ in range(num_net):
-            net_id = random.randint(0, 4) #net_id随机选取网络种类 0:vgg16, 1:inceptionv3, 2:inceptionv4, 3:resNet, 4:denseNet
-            nets.append(net_id)
-        file.writelines(f'exp_id:{exp_id}, nets:{nets}')
-        file.flush()
-        print("Experiment3 start")
-        print("选取的网络", nets)
-        path = f'./log/Experiment3/{exp_id}'
-        print(path)
-        if not os.path.exists(path):
-            os.makedirs(path)
-        for t in range(repeat_times):
-            print(f'repeat_times:{t}')
+    log = {'vanilla': [], 'capuchin': [], 'vdnn': []}
+    log_path = f'./log/Experiment3/'
+    if not os.path.exists(log_path):
+        os.makedirs(log_path)
+    f1 = open(f"{log_path}/log.pkl", "wb")
+    res = open(f'{log_path}/res.txt', 'w+')
+    for t in range(repeat_times):
+        print(f'repeat_times:{t}')
+        for exp_id in range(5):
+            nets = [0, 1, 2, 3, 4]
+            np.random.shuffle(nets)
+            file.writelines(f'exp_id:{exp_id}, nets:{nets}')
+            file.flush()
+            print("Experiment3 start")
+            print("选取的网络", nets)
+            path = f'./log/Experiment3/{exp_id}'
+            print(path)
+            if not os.path.exists(path):
+                os.makedirs(path)
             for type in range(3):  # type是调度方式的选择, 0.不调度，1.capuchin 2.vdnn
-                job_pool = [generate_job(num_step=50, net_id=net_id, type=type, batch_size=batch_size, path=path, file_name=f"_repeat_time={t}_net_order={i}") for i, net_id in enumerate(nets)]
+                job_pool = [generate_job(num_step=num_step, net_id=net_id, type=type, batch_size=batch_size, path=path, file_name=f"_repeat_time={t}_net_order={i}") for i, net_id in enumerate(nets)]
+                start_time = time.time()
+                recorder = GPURecord(log_path)
                 for job in job_pool:
                     job.start()
                 for job in job_pool:
                     job.join()
-        get_result(path, repeat_times=3)
-        print("Experiment3 finish")
+                average_time_cost = (time.time() - start_time) / num_step
+                recorder.stop()
+                log[methods[type]].append([recorder.max_gpu_memory, average_time_cost])
+                pkl.dump(log, f1)
+    all_vanilla_max_memory = []
+    all_vanilla_time = []
+
+    all_vdnn_max_memory = []
+    all_vdnn_time = []
+    all_vdnn_MSR = []
+    all_vdnn_EOR = []
+    all_vdnn_BCR = []
+
+    all_capuchin_max_memory = []
+    all_capuchin_time = []
+    all_capuchin_MSR = []
+    all_capuchin_EOR = []
+    all_capuchin_BCR = []
+    for t in range(repeat_times):
+        vanilla_max_gpu_memory, vanilla_average_time_cost = log[methods[0]][t]
+        all_vanilla_max_memory.append(vanilla_max_gpu_memory)
+        all_vanilla_time.append(vanilla_average_time_cost)
+        capuchin_max_gpu_memory, capuchin_average_time_cost = log[methods[1]][t]
+        all_capuchin_max_memory.append(capuchin_max_gpu_memory)
+        all_capuchin_time.append(capuchin_average_time_cost)
+        all_capuchin_MSR.append(1-capuchin_max_gpu_memory/vanilla_max_gpu_memory)
+        all_capuchin_EOR.append(capuchin_average_time_cost/vanilla_average_time_cost - 1)
+        all_capuchin_BCR.append(all_capuchin_MSR[-1]/all_capuchin_EOR[-1])
+        vdnn_max_gpu_memory, vdnn_average_time_cost = log[methods[2]][t]
+        all_vdnn_max_memory.append(vdnn_max_gpu_memory)
+        all_vdnn_time.append(vdnn_average_time_cost)
+        all_vdnn_MSR.append(1 - vdnn_max_gpu_memory / vanilla_max_gpu_memory)
+        all_vdnn_EOR.append(vdnn_average_time_cost / vanilla_average_time_cost - 1)
+        all_vdnn_BCR.append(all_vdnn_MSR[-1] / all_vdnn_EOR[-1])
+    all_vanilla_max_memory = np.array(all_vanilla_max_memory)
+    all_vanilla_time = np.array(all_vanilla_time)
+    all_vdnn_max_memory = np.array(all_vdnn_max_memory)
+    all_vdnn_time = np.array(all_vdnn_time)
+    all_vdnn_MSR = np.array(all_vdnn_MSR)
+    all_vdnn_EOR = np.array(all_vdnn_EOR)
+    all_vdnn_BCR = np.array(all_vdnn_BCR)
+    all_capuchin_max_memory = np.array(all_capuchin_max_memory)
+    all_capuchin_time = np.array(all_capuchin_time)
+    all_capuchin_MSR = np.array(all_capuchin_MSR)
+    all_capuchin_EOR = np.array(all_capuchin_EOR)
+    all_capuchin_BCR = np.array(all_capuchin_BCR)
+    res.writelines('vanilla:\n')
+    res.writelines(f'max_memory:{all_vanilla_max_memory.mean()} +- {all_vanilla_max_memory.std()}\n')
+    res.writelines(f'time:{all_vanilla_time.mean()} +- {all_vanilla_time.std()}\n\n')
+
+    res.writelines('vDNN:\n')
+    res.writelines(f'max_memory:{all_vdnn_max_memory.mean()} +- {all_vdnn_max_memory.std()}\n')
+    res.writelines(f'time:{all_vdnn_time.mean()} +- {all_vdnn_time.std()}\n')
+    res.writelines(f'memory_saved:{all_vdnn_MSR.mean()} +- {all_vdnn_MSR.std()}\n')
+    res.writelines(f'extra_overhead:{all_vdnn_EOR.mean()} +- {all_vdnn_EOR.std()}\n')
+    res.writelines(f'efficiency:{all_vdnn_MSR.mean() / all_vdnn_EOR.mean()}\n\n')
+
+    res.writelines('capuchin:\n')
+    res.writelines(f'max_memory:{all_capuchin_max_memory.mean()} +- {all_capuchin_max_memory.std()}\n')
+    res.writelines(f'time:{all_capuchin_time.mean()} +- {all_capuchin_time.std()}\n')
+    res.writelines(f'memory_saved:{all_capuchin_MSR.mean()} +- {all_capuchin_MSR.std()}\n')
+    res.writelines(f'extra_overhead:{all_capuchin_EOR.mean()} +- {all_capuchin_EOR.std()}\n')
+    res.writelines(f'efficiency:{all_capuchin_MSR.mean() / all_capuchin_EOR.mean()}\n\n')
+    res.flush()
+    res.close()
+    print("Experiment3 finish")
     file.close()
+    f1.close()
+
 
 Experiment3()
