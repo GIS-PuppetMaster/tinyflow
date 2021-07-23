@@ -2456,9 +2456,9 @@ class Executor(object):
             else:
                 index_to_gpu_map[node.index + self.total_node] = None
                 index_to_cpu_flag[node.index + self.total_node] = False
-                if node.index + self.total_node in index_to_cpu_map.keys() and index_to_cpu_map[node.index + self.total_node] is not None:
+                if not node.index + self.total_node in index_to_cpu_map.keys() or index_to_cpu_map[node.index + self.total_node] is None:
                     index_to_cpu_map[node.index + self.total_node] = ndarray.empty(value.shape, self.ctx_cpu)
-
+        # print([x for x in index_to_cpu_map.keys()])
         # collect shapes for all placeholders
         # for i in index_to_gpu_map.keys():
         #     feed_shapes[self.topo_order[i]] = index_to_gpu_map[i].shape
