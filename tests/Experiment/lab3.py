@@ -139,8 +139,8 @@ def generate_job(num_step, net_id, type, batch_size, path, need_tosave, file_nam
 
 
 def Experiment3():
-    repeat_times = 2
-    num_step = 5
+    repeat_times = 10
+    num_step = 50
     batch_size = 2
     file = open('./log/experiment3_log.txt', 'w+')
     log = {'vanilla': [], 'capuchin': [], 'vdnn': []}
@@ -161,8 +161,8 @@ def Experiment3():
         print("选取的网络", nets)
         path = f'./log/Experiment3/repeat_{t}'
         print(path)
-        if not os.path.exists(path):
-            os.makedirs(path)
+        # if not os.path.exists(path):
+        #     os.makedirs(path)
         # TENSILE中MDW实验的MSR值
         budget = 0.19244649546818504
         for type in range(3):  # type是调度方式的选择, 0.不调度，1.capuchin 2.vdnn
