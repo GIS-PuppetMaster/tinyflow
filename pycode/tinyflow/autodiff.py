@@ -2747,7 +2747,7 @@ class Executor(object):
                     index_to_gpu_map[input_node.index] = None
 
                 t2 = datetime.datetime.now()
-                node.runtime = (t2 - t1).total_seconds() / 1000000
+                node.runtime = (t2 - t1).total_seconds()
 
                 # time_new = datetime.datetime.now()
                 # node.runtime = (time_new - time_old).microseconds / 1000
@@ -2798,7 +2798,7 @@ class Executor(object):
             t1 = datetime.datetime.now()
             node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream, False)
             t2 = datetime.datetime.now()
-            node.runtime = (t2 - t1).total_seconds() / 1000000
+            node.runtime = (t2 - t1).total_seconds()
 
             # time_new = datetime.datetime.now()
             # node.runtime = (time_new - time_old).microseconds / 1000
