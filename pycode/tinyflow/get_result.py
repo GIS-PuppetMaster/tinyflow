@@ -1,17 +1,20 @@
 import numpy as np
 import traceback
-import os
+
 
 def get_result(raw_workload, repeat_times):
     all_saved_ratio = []
     all_saved_ratio_cold_start = []
     all_extra_overhead = []
+    all_extra_overhead_cold_start = []
     all_vanilla_max_memory_used = []
     all_schedule_max_memory_used = []
     all_schedule_max_memory_used_cold_start = []
     all_vanilla_time_cost = []
     all_schedule_time_cost = []
+    all_schedule_time_cost_cold_start = []
     all_memory_saved_to_extra_overhead_ratio = []
+    all_memory_saved_to_extra_overhead_ratio_cold_start = []
     for i in range(repeat_times):
         workload = raw_workload + f'/repeat_{i}'
         vanilla_path = f'{workload}/vanilla/'
@@ -49,7 +52,7 @@ def get_result(raw_workload, repeat_times):
         saved_ratio = 1 - schedule_max_memory_used / vanilla_max_memory_used
         all_saved_ratio_cold_start.append(saved_ratio)
 
-        with open(vanilla_path + 'gpu_time.txt', 'r') as f:
+        with open(vanilla_path + 'gpu_time_cold_start.txt', 'r') as f:
             lines = f.readlines()
         vanilla_time_cost = float(lines[0].replace('time_cost:', ''))
         all_vanilla_time_cost.append(vanilla_time_cost)
@@ -61,9 +64,19 @@ def get_result(raw_workload, repeat_times):
         all_extra_overhead.append(extra_overhead)
         memory_saved_to_extra_overhead_ratio = saved_ratio / extra_overhead
         all_memory_saved_to_extra_overhead_ratio.append(memory_saved_to_extra_overhead_ratio)
+
+        with open(scheduled_path + 'gpu_time_cold_start.txt', 'r') as f:
+            lines = f.readlines()
+        schedule_time_cost = float(lines[0].replace('time_cost:', ''))
+        all_schedule_time_cost_cold_start.append(schedule_time_cost)
+        extra_overhead_cold_start = schedule_time_cost / vanilla_time_cost - 1
+        all_extra_overhead_cold_start.append(extra_overhead_cold_start)
+        memory_saved_to_extra_overhead_ratio = saved_ratio / extra_overhead
+        all_memory_saved_to_extra_overhead_ratio_cold_start.append(memory_saved_to_extra_overhead_ratio)
     all_saved_ratio = np.array(all_saved_ratio)
     all_saved_ratio_cold_start = np.array(all_saved_ratio_cold_start)
     all_extra_overhead = np.array(all_extra_overhead)
+    all_extra_overhead_cold_start = np.array(all_extra_overhead_cold_start)
     all_vanilla_max_memory_used = np.array(all_vanilla_max_memory_used)
     all_schedule_max_memory_used = np.array(all_schedule_max_memory_used)
     all_schedule_max_memory_used_cold_start = np.array(all_schedule_max_memory_used_cold_start)
@@ -80,12 +93,13 @@ def get_result(raw_workload, repeat_times):
                 f'\nschedule_time_cost:{all_schedule_time_cost.mean()} +- {all_schedule_time_cost.std()}'
                 f'\nefficiency:{all_saved_ratio.mean() / all_extra_overhead.mean()}'
                 f'\n\n\nsaved_ratio_cold_start:{all_saved_ratio_cold_start.mean()} +- {all_saved_ratio_cold_start.std()}'
+                f'\nextra_overhead_cold_start:{all_extra_overhead_cold_start.mean()} +- {all_extra_overhead_cold_start.std()}'
                 f'\nschedule_max_memory_used_cold_start:{all_schedule_max_memory_used_cold_start.mean()} +- {all_schedule_max_memory_used_cold_start.std()}'
-                f'\nefficiency_cold_start:{all_saved_ratio_cold_start.mean() / all_extra_overhead.mean()}')
+                f'\nefficiency_cold_start:{all_saved_ratio_cold_start.mean() / all_extra_overhead_cold_start.mean()}')
 
 
 if __name__ == '__main__':
-    from log.MakeCSV import file_list
+    from pycode.tinyflow.MakeCSV import file_list
     for p in file_list:
         try:
             get_result(p, 3)

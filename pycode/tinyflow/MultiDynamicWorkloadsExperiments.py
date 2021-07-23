@@ -17,25 +17,28 @@ from pycode.tinyflow.get_result import get_result
 from util import GPURecord
 
 
-def run_model(log_path, model: list, top_control_queue_list, top_message_queue_list, num_step, batch_size, **kwargs):
+def run_model(raw_log_path, model: list, top_control_queue_list, top_message_queue_list, num_step, batch_size, **kwargs):
     job_number = len(model)
     global_message_queue = multiprocessing.Queue()
     global_control_queue = multiprocessing.Queue()
-    if not os.path.exists(log_path):
-        os.makedirs(log_path)
     inited_model = []
     for job_id, m in enumerate(model):
         top_control_queue = multiprocessing.Queue()
         top_control_queue_list.append(top_control_queue)
         top_message_queue = multiprocessing.Queue()
         top_message_queue_list.append(top_message_queue)
+        path_list = raw_log_path.split('/')
+        path_list[2] = m.__class__.__name__ + ' ' + path_list[2]
+        log_path = '/'.join(path_list)
+        if not os.path.exists(log_path):
+            os.makedirs(log_path)
         inited_model.append(m(num_step=num_step, batch_size=batch_size, log_path=log_path, job_id=job_id))
     job_pool = [Process(target=m.run,
                         args=(ndarray.gpu(0), top_control_queue_list[i], top_message_queue_list[i], 1000, np.random.normal(loc=0, scale=0.1, size=(m.batch_size, m.image_channel, m.image_size, m.image_size)),
                               np.random.normal(loc=0, scale=0.1, size=(m.batch_size, 1000))), kwargs=dict(predict_results=kwargs['predict_results'][m.__class__.__name__])) for i, m in enumerate(inited_model)]
     for job in job_pool:
         job.start()
-    if 'schedule' in log_path:
+    if 'schedule' in raw_log_path:
         scheduler = Process(target=mp.multiprocess_init, args=(global_message_queue, global_control_queue, job_number))
         scheduler.start()
         while True in [job.is_alive() for job in job_pool]:
@@ -81,7 +84,7 @@ if __name__ == '__main__':
         # =======================vanilla===================== #
         print(f'vanilla,repeat:{t}')
         recorder = GPURecord(log_path)
-        f1 = open(f"{log_path}/gpu_time.txt", "w+")
+        f1 = open(f"{log_path}/gpu_time_cold_start.txt", "w+")
         top_control_queue_list = []
         top_message_queue_list = []
         model_list = [VGG16, Inceptionv3, Inceptionv4, ResNet50, DenseNet121]

@@ -1,5 +1,5 @@
 import os
-GPU = 1
+GPU = 0
 os.environ['CUDA_VISIBLE_DEVICES'] = f'{GPU}'
 import sys
 sys.path.append('../../')
@@ -559,7 +559,7 @@ class Inceptionv3():
         self.n_class = n_class
         self.top_control_queue = top_control_queue
         self.top_message_queue = top_message_queue
-        executor_ctx = executor_ctx
+        self.executor_ctx = executor_ctx
         X = self.ad.Placeholder("X")
         y_ = self.ad.Placeholder("y_")
         filterb_1 = self.ad.Variable("filterb_1")
@@ -1021,7 +1021,7 @@ class Inceptionv3():
         # fc8
 
         executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue,
-                                         top_message_queue=top_message_queue, log_path=self.log_path, **kwargs)
+                                         top_message_queue=top_message_queue, log_path=self.log_path)
 
         feed_dict = {filterb_1: filtersb_val1, filterb_2: filtersb_val2, filterb_3: filtersb_val3
             , filterb_4: filtersb_val4, filterb_5: filtersb_val5,
@@ -1092,26 +1092,35 @@ class Inceptionv3():
         gpu_record_cold_start = GPURecord(self.log_path,suffix='_cold_start')
         gpu_record = GPURecord(self.log_path)
         if self.job_id == 0:
-            f1 = open(f"{self.log_path}/gpu_time.txt", "w+")
+            if 'schedule' in self.log_path:
+                f1 = open(f"{self.log_path}/gpu_time.txt", "w+")
+            f1_cold_start = open(f"{self.log_path}/gpu_time_cold_start.txt", "w+")
         start_record = -1
         start_cold_start_record = False
         already_start_record = False
         already_start_cold_start_record = False
+        cold_start_i = 0
+        start_i = 0
         for i in range(self.num_step):
             print("step", i)
             if self.job_id == 0:
                 if i == 0:
-                    start_time = time.time()
                     if 'vanilla' in self.log_path:
                         gpu_record_cold_start.start()
+                        start_time_cold_start = time.time()
+                        cold_start_i = i
                         print(f'vanilla start_record at: {i}')
                 if not already_start_record:
                     if start_cold_start_record and not already_start_cold_start_record:
                         gpu_record_cold_start.start()
+                        start_time_cold_start = time.time()
+                        cold_start_i = i
                         already_start_cold_start_record = True
                         print(f'cold_start start_record at: {i}')
                     if i == start_record:
                         gpu_record.start()
+                        start_time = time.time()
+                        start_i = i
                         already_start_record = True
                         print(f'start_record at: {i}')
                     if self.ad.have_got_control_message == 2 and start_record == -1:
@@ -1127,9 +1136,14 @@ class Inceptionv3():
         if self.job_id == 0:
             gpu_record_cold_start.stop()
             gpu_record.stop()
-            f1.write(f'time_cost:{time.time() - start_time}')
-            f1.flush()
-            f1.close()
+            end_time = time.time()
+            if 'schedule' in self.log_path:
+                f1.write(f'time_cost:{(end_time - start_time) / (self.num_step - start_i)}')
+                f1.flush()
+                f1.close()
+            f1_cold_start.write(f'time_cost:{(end_time - start_time_cold_start) / (self.num_step - cold_start_i)}')
+            f1_cold_start.flush()
+            f1_cold_start.close()
         print(loss_val)
 
         print("success")
@@ -1165,4 +1179,4 @@ def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
 
 
 if __name__ == '__main__':
-    run_exp([['./log/Inception V3 bs4/', 1, 1, 4]])
+    run_exp([['./log/Inception V3 bs4/', 1, 1, 4]], skip='schedule')

@@ -1,6 +1,6 @@
 import os
 
-GPU = 2
+GPU = 0
 os.environ['CUDA_VISIBLE_DEVICES'] = f'{GPU}'
 import sys
 
@@ -314,26 +314,35 @@ class VGG16():
         gpu_record_cold_start = GPURecord(self.log_path, suffix='_cold_start')
         gpu_record = GPURecord(self.log_path)
         if self.job_id == 0:
-            f1 = open(f"{self.log_path}/gpu_time.txt", "w+")
+            if 'schedule' in self.log_path:
+                f1 = open(f"{self.log_path}/gpu_time.txt", "w+")
+            f1_cold_start=open(f"{self.log_path}/gpu_time_cold_start.txt", "w+")
         start_record = -1
         start_cold_start_record = False
         already_start_record = False
         already_start_cold_start_record = False
+        cold_start_i = 0
+        start_i = 0
         for i in range(self.num_step):
             print("step", i)
             if self.job_id == 0:
                 if i == 0:
-                    start_time = time.time()
                     if 'vanilla' in self.log_path:
                         gpu_record_cold_start.start()
+                        start_time_cold_start = time.time()
+                        cold_start_i = i
                         print(f'vanilla start_record at: {i}')
                 if not already_start_record:
                     if start_cold_start_record and not already_start_cold_start_record:
                         gpu_record_cold_start.start()
+                        start_time_cold_start = time.time()
+                        cold_start_i = i
                         already_start_cold_start_record = True
                         print(f'cold_start start_record at: {i}')
                     if i == start_record:
                         gpu_record.start()
+                        start_time = time.time()
+                        start_i = i
                         already_start_record = True
                         print(f'start_record at: {i}')
                     if self.ad.have_got_control_message == 2 and start_record == -1:
@@ -349,9 +358,14 @@ class VGG16():
         if self.job_id == 0:
             gpu_record_cold_start.stop()
             gpu_record.stop()
-            f1.write(f'time_cost:{time.time() - start_time}')
-            f1.flush()
-            f1.close()
+            end_time = time.time()
+            if 'schedule' in self.log_path:
+                f1.write(f'time_cost:{(end_time - start_time)/(self.num_step-start_i)}')
+                f1.flush()
+                f1.close()
+            f1_cold_start.write(f'time_cost:{(end_time - start_time_cold_start)/(self.num_step-cold_start_i)}')
+            f1_cold_start.flush()
+            f1_cold_start.close()
         print(loss_val)
 
         print("success")

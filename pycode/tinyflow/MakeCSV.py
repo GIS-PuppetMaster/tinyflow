@@ -19,7 +19,7 @@ baseline_multi_workloads = ['VGG x1', 'VGG x2', 'VGG x3',
                             'InceptionV4 x1', 'InceptionV4 x2', 'InceptionV4 x3',
                             'ResNet x1', 'ResNet x2', 'ResNet x3',
                             'DenseNet x1', 'DenseNet x2', 'DenseNet x3']
-baseline_path = './baseline/'
+baseline_path = 'log/baseline/'
 batch_size_workloads = ['VGG x1', 'VGG bs4', 'VGG bs8', 'VGG', 'VGG bs32',
                         'Inception V3 x1', 'Inception V3 bs4', 'Inception V3 bs8', 'Inception V3', 'Inception V3 bs32',
                         'Inception V4 x1', 'Inception V4 bs4', 'Inception V4 bs8', 'Inception V4',
@@ -30,7 +30,8 @@ batch_size_workloads_col = {'VGG x1': 0, 'VGG bs4': 1, 'VGG bs8': 2, 'VGG': 3, '
                             'Inception V4 x1': 0, 'Inception V4 bs4': 1, 'Inception V4 bs8': 2, 'Inception V4': 3,
                             'ResNet x1': 0, 'ResNet50 bs4': 1, 'ResNet50 bs8': 2, 'ResNet': 3, 'ResNet50 bs32': 4,
                             'DenseNet x1': 0, 'DenseNet bs4': 1, 'DenseNet bs8': 2, 'DenseNet': 3}
-title = ['saved_ratio', 'extra_overhead', 'vanilla_max_memory_used', 'schedule_max_memory_used', 'vanilla_time_cost', 'schedule_time_cost', 'efficiency']
+title = ['saved_ratio', 'extra_overhead', 'vanilla_max_memory_used', 'schedule_max_memory_used', 'vanilla_time_cost', 'schedule_time_cost', 'efficiency', '', '',
+         'saved_ratio_cold_start','extra_overhead_cold_start', 'schedule_max_memory_used_cold_start', 'efficiency_cold_start']
 baseline_title = ['vanilla', 'max_memory', 'time', '', 'vDNN', 'max_memory', 'time', 'memory_saved', 'extra_overhead', 'efficiency', '', 'Capuchin', 'max_memory', 'time', 'memory_saved', 'extra_overhead',
                   'efficiency']
 
@@ -51,14 +52,17 @@ def get_row(path_):
     return row_
 
 
-if __name__ == '__main__':
+def make_csv():
     # single_workloads
     data = np.zeros((5, 3))
     for file in single_workloads:
-        path = os.path.join(file, 'repeat_3_result.txt')
+        path = './log/' + file
+        path = os.path.join(path, 'repeat_3_result.txt')
         with open(path, 'r') as f:
             lines = f.readlines()
         for i, line in enumerate(lines):
+            if i==7 or i==8:
+                continue
             assert title[i] in line
             temp = line.replace(title[i] + ':', '')
             mean = format(float(temp.split(' ')[0]), '.4f')
@@ -76,25 +80,28 @@ if __name__ == '__main__':
     df = pd.DataFrame(data)
     df.index = single_workloads
     df.columns = ['MSR', 'EOR', "CBR"]
-    df.to_csv('SingleWorkloads.csv')
+    df.to_csv('./log/SingleWorkloads.csv')
 
     # multi_workloads
-    MSR = np.zeros((15, 4))
-    EOR = np.zeros((15, 4))
-    CBR = np.zeros((15, 4))
-    MSR_cold_start = np.zeros((15, 4))
-    CBR_cold_start = np.zeros((15, 4))
+    MSR = np.zeros((15, 3))
+    EOR = np.zeros((15, 3))
+    CBR = np.zeros((15, 3))
+    MSR_cold_start = np.zeros((15, 3))
+    EOR_cold_start = np.zeros((15, 3))
+    CBR_cold_start = np.zeros((15, 3))
 
     # TENSILE
     for file in multi_workloads:
+        path = './log/' + file
         if 'MDW' in file:
-            path = os.path.join(file, 'repeat_10_result.txt')
+            # path = os.path.join(file, 'repeat_10_result.txt')
+            continue
         else:
-            path = os.path.join(file, 'repeat_3_result.txt')
+            path = os.path.join(path, 'repeat_3_result.txt')
         with open(path, 'r') as f:
             lines = f.readlines()
         for i, line in enumerate(lines):
-            if i == 0 or i == 1 or i == 6 or i == 9 or i == 11:
+            if i == 0 or i == 1 or i == 6 or i == 9 or i==10 or i == 12:
                 assert title[i] in line
                 temp = line.replace(title[i] + ':', '')
                 mean = format(float(temp.split(' ')[0]), '.4f')
@@ -105,8 +112,8 @@ if __name__ == '__main__':
                     col = 1
                 elif 'x3' in path:
                     col = 2
-                elif 'MDW' in path:
-                    col = 3
+                # elif 'MDW' in path:
+                #     col = 3
                 else:
                     raise Exception(f'unsupported workload:{path}')
                 if i == 0:
@@ -117,59 +124,73 @@ if __name__ == '__main__':
                     CBR[row, col] = mean
                 elif i == 9:
                     MSR_cold_start[row, col] = mean
-                elif i == 11:
+                elif i == 10:
+                    EOR_cold_start[row, col] = mean
+                elif i == 12:
                     CBR_cold_start[row, col] = mean
     # vDNN&Capuchin
-    for file in baseline_multi_workloads:
-        path = os.path.join(baseline_path, file, 'result.txt')
-        with open(path, 'r') as f:
-            lines = f.readlines()
-        for i, line in enumerate(lines):
-            assert baseline_title[i] in line
-            temp = line.replace(baseline_title[i] + ':', '')
-            mean = format(float(temp.split(' ')[0]), '.4f')
-            # todo: MDW
-            # 分隔
-            if i == 3 or i == 10:
-                continue
-            if 'x1' in path:
-                col = 0
-            elif 'x2' in path:
-                col = 1
-            elif 'x3' in path:
-                col = 2
-            else:
-                raise Exception(f'unsupported workload:{path}')
-            # vDNN
-            if 4 <= i <= 9:
-                row = get_row(path) + 5
-                if i == 7:
-                    MSR[row, col] = mean
-                elif i == 8:
-                    EOR[row, col] = mean
-                elif i == 9:
-                    CBR[row, col] = mean
-            # Capuchin
-            elif 11 <= i:
-                row = get_row(path) + 10
-                if i == 14:
-                    MSR[row, col] = mean
-                elif i == 15:
-                    EOR[row, col] = mean
-                elif i == 16:
-                    CBR[row, col] = mean
+    # for file in baseline_multi_workloads:
+    #     path = os.path.join(baseline_path, file, 'result.txt')
+    #     with open(path, 'r') as f:
+    #         lines = f.readlines()
+    #     for i, line in enumerate(lines):
+    #         assert baseline_title[i] in line
+    #         temp = line.replace(baseline_title[i] + ':', '')
+    #         mean = format(float(temp.split(' ')[0]), '.4f')
+    #         # todo: MDW
+    #         # 分隔
+    #         if i == 3 or i == 10:
+    #             continue
+    #         if 'x1' in path:
+    #             col = 0
+    #         elif 'x2' in path:
+    #             col = 1
+    #         elif 'x3' in path:
+    #             col = 2
+    #         else:
+    #             raise Exception(f'unsupported workload:{path}')
+    #         # vDNN
+    #         if 4 <= i <= 9:
+    #             row = get_row(path) + 5
+    #             if i == 7:
+    #                 MSR[row, col] = mean
+    #             elif i == 8:
+    #                 EOR[row, col] = mean
+    #             elif i == 9:
+    #                 CBR[row, col] = mean
+    #         # Capuchin
+    #         elif 11 <= i:
+    #             row = get_row(path) + 10
+    #             if i == 14:
+    #                 MSR[row, col] = mean
+    #             elif i == 15:
+    #                 EOR[row, col] = mean
+    #             elif i == 16:
+    #                 CBR[row, col] = mean
     df = pd.DataFrame(MSR)
     df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t for t in single_workloads]
     df.columns = ['x1', 'x2', "x3"]
-    df.to_csv('MultiWorkloadsMSR.csv')
+    df.to_csv('./log/MultiWorkloadsMSR.csv')
     df = pd.DataFrame(EOR)
     df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t for t in single_workloads]
     df.columns = ['x1', 'x2', "x3"]
-    df.to_csv('MultiWorkloadsEOR.csv')
+    df.to_csv('./log/MultiWorkloadsEOR.csv')
     df = pd.DataFrame(CBR)
     df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t for t in single_workloads]
     df.columns = ['x1', 'x2', "x3"]
-    df.to_csv('MultiWorkloadsCBR.csv')
+    df.to_csv('./log/MultiWorkloadsCBR.csv')
+    df = pd.DataFrame(MSR_cold_start)
+    df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t for t in single_workloads]
+    df.columns = ['x1', 'x2', "x3"]
+    df.to_csv('./log/MultiWorkloadsMSR_cold_start.csv')
+    df = pd.DataFrame(EOR_cold_start)
+    df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t for t in single_workloads]
+    df.columns = ['x1', 'x2', "x3"]
+    df.to_csv('./log/MultiWorkloadsEOR_cold_start.csv')
+    df = pd.DataFrame(CBR_cold_start)
+    df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t for t in single_workloads]
+    df.columns = ['x1', 'x2', "x3"]
+    df.to_csv('./log/MultiWorkloadsCBR_cold_start.csv')
 
     # batch_size
     MSR = np.zeros((5, 5))
@@ -182,7 +203,8 @@ if __name__ == '__main__':
     CBR[2, 4] = None
     CBR[4, 4] = None
     for file in batch_size_workloads:
-        path = os.path.join(file, 'repeat_3_result.txt')
+        path = './log/'+file
+        path = os.path.join(path, 'repeat_3_result.txt')
         with open(path, 'r') as f:
             lines = f.readlines()
         for i, line in enumerate(lines):
@@ -201,12 +223,12 @@ if __name__ == '__main__':
     df = pd.DataFrame(MSR)
     df.index = single_workloads
     df.columns = ['2', '4', '8', '16', '32']
-    df.to_csv('BatchSizeMSR.csv')
+    df.to_csv('./log/BatchSizeMSR.csv')
     df = pd.DataFrame(EOR)
     df.index = single_workloads
     df.columns = ['2', '4', '8', '16', '32']
-    df.to_csv('BatchSizeEOR.csv')
+    df.to_csv('./log/BatchSizeEOR.csv')
     df = pd.DataFrame(CBR)
     df.index = single_workloads
     df.columns = ['2', '4', '8', '16', '32']
-    df.to_csv('BatchSizeCBR.csv')
+    df.to_csv('./log/BatchSizeCBR.csv')
