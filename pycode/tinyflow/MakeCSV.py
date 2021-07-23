@@ -5,7 +5,7 @@ import numpy as np
 file_list = ['VGG', 'VGG x1', 'VGG x2', 'VGG x3', 'VGG MDW', 'VGG bs4', 'VGG bs8', 'VGG bs32',
              'Inception V3', 'Inception V3 x1', 'Inception V3 x2', 'Inception V3 x3', 'Inception V3 MDW', 'Inception V3 bs4', 'Inception V3 bs8', 'Inception V3 bs32',
              'Inception V4', 'Inception V4 x1', 'Inception V4 x2', 'Inception V4 x3', 'Inception V4 MDW', 'Inception V4 bs4', 'Inception V4 bs8',
-             'ResNet', 'ResNet x1', 'ResNet x2', 'ResNet x3', 'ResNet MDW', 'ResNet50 bs4', 'ResNet50 bs8', 'ResNet50 bs32',
+             'ResNet', 'ResNet x1', 'ResNet x2', 'ResNet x3', 'ResNet MDW', 'ResNet bs4', 'ResNet bs8', 'ResNet bs32',
              'DenseNet', 'DenseNet x1', 'DenseNet x2', 'DenseNet x3', 'DenseNet MDW', 'DenseNet bs4', 'DenseNet bs8']
 single_workloads = ['VGG', 'Inception V3', 'Inception V4', 'ResNet', 'DenseNet']
 multi_workloads = ['VGG x1', 'VGG x2', 'VGG x3', 'VGG MDW',
@@ -23,12 +23,12 @@ baseline_path = 'log/baseline/'
 batch_size_workloads = ['VGG x1', 'VGG bs4', 'VGG bs8', 'VGG', 'VGG bs32',
                         'Inception V3 x1', 'Inception V3 bs4', 'Inception V3 bs8', 'Inception V3', 'Inception V3 bs32',
                         'Inception V4 x1', 'Inception V4 bs4', 'Inception V4 bs8', 'Inception V4',
-                        'ResNet x1', 'ResNet50 bs4', 'ResNet50 bs8', 'ResNet', 'ResNet50 bs32',
+                        'ResNet x1', 'ResNet bs4', 'ResNet bs8', 'ResNet', 'ResNet bs32',
                         'DenseNet x1', 'DenseNet bs4', 'DenseNet bs8', 'DenseNet']
 batch_size_workloads_col = {'VGG x1': 0, 'VGG bs4': 1, 'VGG bs8': 2, 'VGG': 3, 'VGG bs32': 4,
                             'Inception V3 x1': 0, 'Inception V3 bs4': 1, 'Inception V3 bs8': 2, 'Inception V3': 3, 'Inception V3 bs32': 4,
                             'Inception V4 x1': 0, 'Inception V4 bs4': 1, 'Inception V4 bs8': 2, 'Inception V4': 3,
-                            'ResNet x1': 0, 'ResNet50 bs4': 1, 'ResNet50 bs8': 2, 'ResNet': 3, 'ResNet50 bs32': 4,
+                            'ResNet x1': 0, 'ResNet bs4': 1, 'ResNet bs8': 2, 'ResNet': 3, 'ResNet bs32': 4,
                             'DenseNet x1': 0, 'DenseNet bs4': 1, 'DenseNet bs8': 2, 'DenseNet': 3}
 title = ['saved_ratio', 'extra_overhead', 'vanilla_max_memory_used', 'schedule_max_memory_used', 'vanilla_time_cost', 'schedule_time_cost', 'efficiency', '', '',
          'saved_ratio_cold_start','extra_overhead_cold_start', 'schedule_max_memory_used_cold_start', 'efficiency_cold_start']
