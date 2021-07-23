@@ -176,11 +176,12 @@ class VGG16(Process):
 
             time2 = datetime.datetime.now()
 
-            print("epoch", i + 1, "use", time2 - time1
+            print("epoch", i + 1, "use", (time2 - time1).total_seconds()
                   , "\tstart", time1, "\tend", time2, file=self.f1)
-            print("VGG16 num_step", i)
-        start_finish_time = t.get_start_finish_time()
-        print((start_finish_time-start_time).microseconds, file=self.f3)
+            print(f"VGG16 num_step {i} time_cost:{time2-time1}")
+        start_finish_time = datetime.datetime.now()
+        print((start_finish_time - start_time).total_seconds(), file=self.f3)
+        print(f'time_cost:{(start_finish_time-start_time).total_seconds()}')
         hit_count, swap_count = t.get_hit()
         print("hit_count ", hit_count, "\nswap_count", swap_count, file=self.f6)
         node_order = t.get_node_order()
@@ -224,6 +225,7 @@ class VGG16(Process):
         if self.need_tosave != 0:
             for i in range(len(outspace) - 1, -1, -1):
                 outspace.pop(i)
-# vgg16 = VGG16(num_step=10, type=2, batch_size=4, gpu_num=0, file_name="")
-# vgg16.start()
+if __name__ == "__main__":
+    vgg16 = VGG16(num_step=50, type=1, batch_size=16, gpu_num=0, file_name="")
+    vgg16.start()
 # #

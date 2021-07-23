@@ -68,7 +68,6 @@ def Experiment1():
         print("Experiment1 start")
         net_name = net_names[net_id]
         for i, num_net in enumerate([1, 1, 2, 3]):
-            #
             if i == 0:
                 batch_size = 16
                 net_name_ = net_name
@@ -89,6 +88,8 @@ def Experiment1():
             for t in range(repeat_times):
                 print(f'repeat_times:{t}')
                 for type in range(3):  # type是调度方式的选择, 0.不调度 1.capuchin 2.vdnn
+                    if type!=2:
+                        continue
                     need_tosave = 0
                     if type == 1:
                         bud = vanilla_max_memory * (1 - budget[net_name][num_net][batch_size])

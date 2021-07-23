@@ -23,6 +23,7 @@ class MemoryManager(threading.Thread):
             node = self.will_do_queue.get(block=True)
             node_index = node[0]
             move_to_gpu = node[1]
+            node_ndarray_new = None
 
             global index_to_cpu_map
             global index_to_gpu_map
@@ -32,7 +33,7 @@ class MemoryManager(threading.Thread):
                 node_ndarray = index_to_gpu_map[node_index]
                 node_ndarray.copyto(index_to_cpu_map[node_index], self.cudaSwapStream)
                 index_to_cpu_flag[node_index] = True
-                # index_to_gpu_map[node_index] = None
+                index_to_gpu_map[node_index] = None
                 # print("swap finish: node " + str(node_index) + " to " + str(move_to_gpu))
                 # print("swap_out", node_index)
 
@@ -55,7 +56,9 @@ class MemoryManager(threading.Thread):
                     print(" ", node_index, "重复swap in")
                     assert 0
 
-
+                # print("swap_in", node_index)
+                # print("swap finish: node " + str(node_index) + " to " + str(move_to_gpu))
+                # print((time2 - time1).microseconds)
 
 
 class TrainExecutor(object):
@@ -148,6 +151,9 @@ class TrainExecutor(object):
         """
         self.node_to_shape_map = dict(feed_shapes)
 
+        sum_shapes = 0
+        sum_convs = 0
+        sum_var = 0
 
         for idx, node in enumerate(self.topo_order):
             if node in self.node_to_shape_map:
@@ -335,8 +341,6 @@ class TrainExecutor(object):
                         # print("卸载完成")
                         while (index_to_cpu_flag[node_input.index] == False):
                             continue
-                        index_to_gpu_map[node_input.index].free_gpu()
-                        index_to_gpu_map[node_input.index] = None
 
             # 把非参数的node置为不存在, 清除gpu上非参数部分没用的值
             for node in self.topo_order:
@@ -344,8 +348,6 @@ class TrainExecutor(object):
                     continue
                 node.array_status = -1
                 node.prefetched = 0
-                if index_to_gpu_map[node.index] !=None:
-                   index_to_gpu_map[node.index].free_gpu()
                 index_to_gpu_map[node.index] = None
 
             # 不是第一次了
@@ -475,17 +477,12 @@ class TrainExecutor(object):
                         # print("卸载完成")
                         while (index_to_cpu_flag[node_input.index] == False):
                             continue
-                        index_to_gpu_map[node_input.index].free_gpu()
-                        index_to_gpu_map[node_input.index] = None
             # 把非参数的node置为不存在, 清除gpu上非参数部分没用的值
             for node in self.topo_order:
                 if node.isw == 1:  # 只有参数有用
                     continue
                 node.array_status = -1
                 node.prefetched = 0
-
-                if index_to_gpu_map[node.index] !=None:
-                   index_to_gpu_map[node.index].free_gpu()
                 index_to_gpu_map[node.index] = None
             #
             # # 把结果输出了： [loss,变量按网络顺序],这里只是输出value，并不保证一定在gpu中
@@ -516,10 +513,6 @@ class TrainExecutor(object):
         return self.node_order
 
     def destroy_cudaStream(self):
-        for node in self.topo_order:
-            if index_to_gpu_map[node.index] != None:
-                index_to_gpu_map[node.index].free_gpu()
-            index_to_gpu_map[node.index] = None
         gpu_op.destroy_cublasHandle(self.cublasHandle)
         gpu_op.destroy_cudnnHandle(self.cudnnHandle)
         gpu_op.destroy_cudaStream(self.cudaStream)

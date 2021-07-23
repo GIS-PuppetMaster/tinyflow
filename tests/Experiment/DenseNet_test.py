@@ -147,16 +147,16 @@ class DenseNet121(Process):
         t.init_Variable(feed_dict)
         start_time = datetime.datetime.now()
         for i in range(num_step):
-            # time1 = datetime.datetime.now()
+            time1 = datetime.datetime.now()
 
             t.run({X: X_val, y_: y_val})
 
-            # time2 = datetime.datetime.now()
-            # print("epoch", i + 1, "use", time2 - time1
-            #       , "\tstart", time1, "\tend", time2, file=self.f1)
+            time2 = datetime.datetime.now()
+            print("epoch", i + 1, "use", (time2 - time1).total_seconds()
+                  , "\tstart", time1, "\tend", time2, file=self.f1)
             print("DenseNet num_step", i)
-        start_finish_time = t.get_start_finish_time()
-        print((start_finish_time-start_time).microseconds, file=self.f3)
+        start_finish_time = datetime.datetime.now()
+        print((start_finish_time-start_time).total_seconds(), file=self.f3)
         hit_count, swap_count = t.get_hit()
         print("hit_count ", hit_count, "\nswap_count", swap_count, file=self.f6)
         node_order = t.get_node_order()
