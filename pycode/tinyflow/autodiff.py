@@ -9,6 +9,7 @@ from . import ndarray, gpu_op
 import random
 import queue
 import datetime
+from line_profiler import LineProfiler
 
 import os
 
@@ -2455,7 +2456,8 @@ class Executor(object):
             else:
                 index_to_gpu_map[node.index + self.total_node] = None
                 index_to_cpu_flag[node.index + self.total_node] = False
-                index_to_cpu_map[node.index + self.total_node] = ndarray.empty(value.shape, self.ctx_cpu)
+                if node.index + self.total_node in index_to_cpu_map.keys() and index_to_cpu_map[node.index + self.total_node] is not None:
+                    index_to_cpu_map[node.index + self.total_node] = ndarray.empty(value.shape, self.ctx_cpu)
 
         # collect shapes for all placeholders
         # for i in index_to_gpu_map.keys():

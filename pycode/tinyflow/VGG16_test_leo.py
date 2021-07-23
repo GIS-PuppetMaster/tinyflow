@@ -5,9 +5,10 @@ os.environ['CUDA_VISIBLE_DEVICES'] = f'{GPU}'
 import sys
 
 sys.path.append('../../')
-from pycode.tinyflow import autodiff as ad
+from pycode.tinyflow import autodiff as ad, autodiff
 from pycode.tinyflow.get_result import get_result
 from util import *
+from line_profiler import LineProfiler
 
 
 class VGG16():
@@ -316,7 +317,7 @@ class VGG16():
         if self.job_id == 0:
             if 'schedule' in self.log_path:
                 f1 = open(f"{self.log_path}/gpu_time.txt", "w+")
-            f1_cold_start=open(f"{self.log_path}/gpu_time_cold_start.txt", "w+")
+            f1_cold_start = open(f"{self.log_path}/gpu_time_cold_start.txt", "w+")
         start_record = -1
         start_cold_start_record = False
         already_start_record = False
@@ -360,13 +361,14 @@ class VGG16():
             gpu_record.stop()
             end_time = time.time()
             if 'schedule' in self.log_path:
-                f1.write(f'time_cost:{(end_time - start_time)/(self.num_step-start_i)}')
+                f1.write(f'time_cost:{(end_time - start_time) / (self.num_step - start_i)}')
                 f1.flush()
                 f1.close()
-            f1_cold_start.write(f'time_cost:{(end_time - start_time_cold_start)/(self.num_step-cold_start_i)}')
+            f1_cold_start.write(f'time_cost:{(end_time - start_time_cold_start) / (self.num_step - cold_start_i)}')
             f1_cold_start.flush()
             f1_cold_start.close()
-        print(loss_val)
+            print(f'timc cost:{end_time - start_time_cold_start}')
+        # print(loss_val)
 
         print("success")
         if not self.top_message_queue.empty():
@@ -401,7 +403,25 @@ def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
 
 
 if __name__ == '__main__':
-    run_exp([['./log/VGG test/', 1, 1, 2]])
+    def main():
+        num_step = 50
+        batch_size = 16
+        log_path = './log/VGG test/vanilla/'
+        job_id = 0
+        model = VGG16(num_step=num_step, batch_size=batch_size, log_path=log_path, job_id=job_id)
+        X_val = np.random.normal(loc=0, scale=0.1, size=(
+            batch_size, model.image_channel, model.image_size, model.image_size))  # number = batch_size  channel = 3  image_size = 224*224
+
+        y_val = np.random.normal(loc=0, scale=0.1, size=(batch_size, 1000))  # n_class = 1000
+        model.run(ndarray.gpu(0),  multiprocessing.Queue(), multiprocessing.Queue(), 1000, X_val, y_val)
+
+    main()
+    # lp = LineProfiler()
+    # lp.add_function(autodiff.Executor.run)
+    # lp_wrapper = lp(main)
+    # lp_wrapper()
+    # lp.print_stats()
+    # run_exp([['./log/VGG test/', 1, 1, 16]],skip='schedule')
     # raw_path='./log/VGG/'
     # repeat=3
     # get_result(raw_path, repeat)

@@ -53,8 +53,12 @@ def run_model(raw_log_path, model: list, top_control_queue_list, top_message_que
                         print("job ", i, "control")
                         top_control_queue_list[i].put(global_control[i])
         for q in top_message_queue_list:
+            while not q.empty():
+                q.get()
             q.close()
         for q in top_control_queue_list:
+            while not q.empty():
+                q.get()
             q.close()
         scheduler.terminate()
     else:
@@ -64,6 +68,14 @@ def run_model(raw_log_path, model: list, top_control_queue_list, top_message_que
                     top_message_queue_list[i].get()
                 if not top_control_queue_list[i].empty():
                     top_control_queue_list[i].get()
+        for q in top_message_queue_list:
+            while not q.empty():
+                q.get()
+            q.close()
+        for q in top_control_queue_list:
+            while not q.empty():
+                q.get()
+            q.close()
     for job in job_pool:
         job.terminate()
     while not global_control_queue.empty():
