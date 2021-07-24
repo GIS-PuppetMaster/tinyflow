@@ -19,7 +19,7 @@ baseline_multi_workloads = ['VGG x1', 'VGG x2', 'VGG x3',
                             'InceptionV4 x1', 'InceptionV4 x2', 'InceptionV4 x3',
                             'ResNet x1', 'ResNet x2', 'ResNet x3',
                             'DenseNet x1', 'DenseNet x2', 'DenseNet x3']
-baseline_path = 'log/baseline/'
+baseline_path = '../../../baseline/tests/Experiment/log/'
 batch_size_workloads = ['VGG x1', 'VGG bs4', 'VGG bs8', 'VGG', 'VGG bs32',
                         'Inception V3 x1', 'Inception V3 bs4', 'Inception V3 bs8', 'Inception V3', 'Inception V3 bs32',
                         'Inception V4 x1', 'Inception V4 bs4', 'Inception V4 bs8', 'Inception V4',
@@ -31,8 +31,8 @@ batch_size_workloads_col = {'VGG x1': 0, 'VGG bs4': 1, 'VGG bs8': 2, 'VGG': 3, '
                             'ResNet x1': 0, 'ResNet bs4': 1, 'ResNet bs8': 2, 'ResNet': 3, 'ResNet bs32': 4,
                             'DenseNet x1': 0, 'DenseNet bs4': 1, 'DenseNet bs8': 2, 'DenseNet': 3}
 title = ['saved_ratio', 'extra_overhead', 'vanilla_max_memory_used', 'schedule_max_memory_used', 'vanilla_time_cost', 'schedule_time_cost', 'efficiency', '', '',
-         'saved_ratio_cold_start','extra_overhead_cold_start', 'schedule_max_memory_used_cold_start', 'efficiency_cold_start']
-baseline_title = ['vanilla', 'max_memory', 'time', '', 'vDNN', 'max_memory', 'time', 'memory_saved', 'extra_overhead', 'efficiency', '', 'Capuchin', 'max_memory', 'time', 'memory_saved', 'extra_overhead',
+         'saved_ratio_cold_start', 'extra_overhead_cold_start', 'schedule_max_memory_used_cold_start', 'efficiency_cold_start']
+baseline_title = ['vanilla', 'max_memory', 'time', '', 'vDNN', 'max_memory', 'time', 'memory_saved', 'extra_overhead', 'efficiency', '', 'capuchin', 'max_memory', 'time', 'memory_saved', 'extra_overhead',
                   'efficiency']
 
 
@@ -61,11 +61,11 @@ def make_csv():
         with open(path, 'r') as f:
             lines = f.readlines()
         for i, line in enumerate(lines):
-            if i==7 or i==8:
+            if i == 7 or i == 8:
                 continue
             assert title[i] in line
             temp = line.replace(title[i] + ':', '')
-            mean = format(float(temp.split(' ')[0]), '.4f')
+            mean = float(format(float(temp.split(' ')[0]), '.4f'))
             # std = round(float(line.split(' ')[2]))
             if i == 0:
                 col = 0
@@ -101,10 +101,10 @@ def make_csv():
         with open(path, 'r') as f:
             lines = f.readlines()
         for i, line in enumerate(lines):
-            if i == 0 or i == 1 or i == 6 or i == 9 or i==10 or i == 12:
+            if i == 0 or i == 1 or i == 6 or i == 9 or i == 10 or i == 12:
                 assert title[i] in line
                 temp = line.replace(title[i] + ':', '')
-                mean = format(float(temp.split(' ')[0]), '.4f')
+                mean = float(format(float(temp.split(' ')[0]), '.4f'))
                 row = get_row(path)
                 if 'x1' in path:
                     col = 0
@@ -129,44 +129,43 @@ def make_csv():
                 elif i == 12:
                     CBR_cold_start[row, col] = mean
     # vDNN&Capuchin
-    # for file in baseline_multi_workloads:
-    #     path = os.path.join(baseline_path, file, 'result.txt')
-    #     with open(path, 'r') as f:
-    #         lines = f.readlines()
-    #     for i, line in enumerate(lines):
-    #         assert baseline_title[i] in line
-    #         temp = line.replace(baseline_title[i] + ':', '')
-    #         mean = format(float(temp.split(' ')[0]), '.4f')
-    #         # todo: MDW
-    #         # 分隔
-    #         if i == 3 or i == 10:
-    #             continue
-    #         if 'x1' in path:
-    #             col = 0
-    #         elif 'x2' in path:
-    #             col = 1
-    #         elif 'x3' in path:
-    #             col = 2
-    #         else:
-    #             raise Exception(f'unsupported workload:{path}')
-    #         # vDNN
-    #         if 4 <= i <= 9:
-    #             row = get_row(path) + 5
-    #             if i == 7:
-    #                 MSR[row, col] = mean
-    #             elif i == 8:
-    #                 EOR[row, col] = mean
-    #             elif i == 9:
-    #                 CBR[row, col] = mean
-    #         # Capuchin
-    #         elif 11 <= i:
-    #             row = get_row(path) + 10
-    #             if i == 14:
-    #                 MSR[row, col] = mean
-    #             elif i == 15:
-    #                 EOR[row, col] = mean
-    #             elif i == 16:
-    #                 CBR[row, col] = mean
+    for file in baseline_multi_workloads:
+        path = os.path.join(baseline_path, file, 'result.txt')
+        with open(path, 'r') as f:
+            lines = f.readlines()
+        for i, line in enumerate(lines):
+            # assert baseline_title[i] in line, line
+            if i in [7, 8, 9, 14, 15, 16]:
+                temp = line.replace(baseline_title[i] + ':', '')
+                mean = float(format(float(temp.split(' ')[0]), '.4f'))
+                # todo: MDW
+                # 分隔
+                if 'x1' in path:
+                    col = 0
+                elif 'x2' in path:
+                    col = 1
+                elif 'x3' in path:
+                    col = 2
+                else:
+                    raise Exception(f'unsupported workload:{path}')
+                # vDNN
+                if 5 <= i <= 9:
+                    row = get_row(path) + 5
+                    if i == 7:
+                        MSR[row, col] = mean
+                    elif i == 8:
+                        EOR[row, col] = mean
+                    elif i == 9:
+                        CBR[row, col] = mean
+                # Capuchin
+                elif 12 <= i:
+                    row = get_row(path) + 10
+                    if i == 14:
+                        MSR[row, col] = mean
+                    elif i == 15:
+                        EOR[row, col] = mean
+                    elif i == 16:
+                        CBR[row, col] = mean
     df = pd.DataFrame(MSR)
     df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t for t in single_workloads]
     df.columns = ['x1', 'x2', "x3"]
@@ -203,7 +202,7 @@ def make_csv():
     CBR[2, 4] = None
     CBR[4, 4] = None
     for file in batch_size_workloads:
-        path = './log/'+file
+        path = './log/' + file
         path = os.path.join(path, 'repeat_3_result.txt')
         with open(path, 'r') as f:
             lines = f.readlines()
@@ -212,7 +211,7 @@ def make_csv():
             if i == 0 or i == 1 or i == 6:
                 assert title[i] in line
                 temp = line.replace(title[i] + ':', '')
-                mean = format(float(temp.split(' ')[0]), '.4f')
+                mean = float(format(float(temp.split(' ')[0]), '.4f'))
                 row = get_row(path)
                 if i == 0:
                     MSR[row, col] = mean

@@ -1,2 +1,0 @@
-time 2021-06-24 02:58:20.750431 	memory 6282.0 	max_memory_used 6282.0 	retained_memory_used 6279.0 	retained_max_memory_used 6279.0
-time 2021-06-24 02:58:20.750968 	memory 6292.0 	max_memory_used 6292.0 	retained_memory_used 6289.0 	retained_max_memory_used 6289.0

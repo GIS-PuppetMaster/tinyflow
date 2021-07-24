@@ -64,7 +64,7 @@ for i in range(5):
     axis[1, i].plot(x, TENSILE, 'rx-', label='TENSILE$_{cs}$')
     axis[1, i].plot(x, vDNN, 'y^-', label='vDNN')
     axis[1, i].plot(x, Capuchin, 'go-', label='Capuchin')
-    axis[1, i].yaxis.set_major_locator(MultipleLocator(0.1))
+    axis[1, i].yaxis.set_major_locator(MultipleLocator(0.5))
     # axis[1, i].set_xlabel(f'{net_type[i]}')
     if i == 0:
         axis[1, i].set_ylabel('EOR')
@@ -84,6 +84,7 @@ for i in range(5):
     axis[2, i].plot(x, Capuchin, 'go-', label='Capuchin')
     axis[2, i].set_xlabel(f'{net_type[i]}')
     if i == 0:
+        # axis[2, i].set_yscale('log', basey=2)
         axis[2, i].set_ylabel('CBR')
     axis[2, i].yaxis.set_major_locator(MultipleLocator(1))
     lines_labels = [fig.axes[0].get_legend_handles_labels()]

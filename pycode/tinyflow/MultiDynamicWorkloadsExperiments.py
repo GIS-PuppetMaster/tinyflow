@@ -89,7 +89,8 @@ def run_model(raw_log_path, model: list, top_control_queue_list, top_message_que
 if __name__ == '__main__':
     with open(f'../../res/inferred_shape.pkl', 'rb') as f:
         predict_results = pkl.load(f)
-    for t in range(10):
+    repeat_times = 3
+    for t in range(repeat_times):
         log_path = f'./log/MDW/repeat_{t}/vanilla'
         if not os.path.exists(log_path):
             os.makedirs(log_path)
@@ -127,4 +128,4 @@ if __name__ == '__main__':
         f1.flush()
         f1.close()
         recorder.stop()
-    get_result(raw_workload='./log/MDW/', repeat_times=10)
+    get_result(raw_workload='./log/MDW/', repeat_times=repeat_times)

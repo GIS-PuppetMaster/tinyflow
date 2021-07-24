@@ -1,5 +1,0 @@
-time 2021-06-24 21:16:14.275517 	memory 1678.0 	max_memory_used 1678.0 	retained_memory_used 1675.0 	retained_max_memory_used 1675.0
-time 2021-06-24 21:16:14.275979 	memory 1680.0 	max_memory_used 1680.0 	retained_memory_used 1677.0 	retained_max_memory_used 1677.0
-time 2021-06-24 21:16:14.806890 	memory 1690.0 	max_memory_used 1690.0 	retained_memory_used 1687.0 	retained_max_memory_used 1687.0
-time 2021-06-24 21:16:14.985020 	memory 1694.0 	max_memory_used 1694.0 	retained_memory_used 1691.0 	retained_max_memory_used 1691.0
-time 2021-06-24 21:16:14.985333 	memory 1698.0 	max_memory_used 1698.0 	retained_memory_used 1695.0 	retained_max_memory_used 1695.0
