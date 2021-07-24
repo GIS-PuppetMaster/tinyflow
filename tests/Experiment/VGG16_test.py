@@ -1,3 +1,5 @@
+import traceback
+
 import numpy as np
 import random, imp, time, os, gzip, datetime, sys, threading
 from multiprocessing import Process
@@ -11,7 +13,7 @@ tinyflow_path = "../../pycode/tinyflow/"
 class VGG16(Process):
     def __init__(self, num_step, type, batch_size, gpu_num, path, file_name, n_class, need_tosave=None):
         super().__init__()
-        self.type=type
+        self.type = type
         self.need_tosave = need_tosave
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_num)
         self.gpu_num = gpu_num
@@ -162,7 +164,7 @@ class VGG16(Process):
         # for i in range(16):
         #     b_val[i] = ndarray.array(b_val[i], ctx)
         aph = 0.001
-        if self.is_capu == True :
+        if self.is_capu == True:
             t = self.TrainExecute.TrainExecutor(self.loss, aph)
         else:
             t = self.TrainExecute.TrainExecutor(self.loss, aph)
@@ -178,7 +180,7 @@ class VGG16(Process):
 
             print("epoch", i + 1, "use", (time2 - time1).total_seconds()
                   , "\tstart", time1, "\tend", time2, file=self.f1)
-            print(f"VGG16 num_step {i}")
+            # print(f"VGG16 num_step {i}")
         start_finish_time = datetime.datetime.now()
         print((start_finish_time - start_time).total_seconds(), file=self.f3)
         # print(f'time_cost:{(start_finish_time-start_time).total_seconds()}')
@@ -194,38 +196,29 @@ class VGG16(Process):
         self.f7.close()
 
     def run(self):
-        # if self.need_tosave != 0:
-        #     outspace = []
-        #     arr_size = self.need_tosave * 1e6 / 4
-        #     gctx = ndarray.gpu(0)
-        #     while arr_size > 0:
-        #         if arr_size > 10000 * 10000:
-        #             outspace.append(ndarray.array(np.ones((10000, 10000)) * 0.01, ctx=gctx))
-        #             arr_size -= 10000 * 10000
-        #         else:
-        #             need_sqrt = int(pow(arr_size, 0.5))
-        #             if need_sqrt <= 0:
-        #                 break
-        #             outspace.append(ndarray.array(np.ones((need_sqrt, need_sqrt)) * 0.01, ctx=gctx))
-        #             arr_size -= need_sqrt * need_sqrt
-        #     print('finish extra matrix generation')
-        X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224
-        y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
+        try:
+            X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224
+            y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
 
-        record = record_GPU.record("VGG16", self.type, self.gpu_num, self.path, self.file_name)
-        record.start()
+            record = record_GPU.record("VGG16", self.type, self.gpu_num, self.path, self.file_name)
+            record.start()
 
-        print("VGG16" + " type" + str(self.type) + " start")
+            print("VGG16" + " type" + str(self.type) + " start")
 
-        self.vgg16(num_step=self.num_step, X_val=X_val, y_val=y_val)
+            self.vgg16(num_step=self.num_step, X_val=X_val, y_val=y_val)
 
-        print("VGG16" + " type" + str(self.type) + " finish")
+            print("VGG16" + " type" + str(self.type) + " finish")
 
-        record.stop()
-        # if self.need_tosave != 0:
-        #     for i in range(len(outspace) - 1, -1, -1):
-        #         outspace.pop(i)
+            record.stop()
+        except Exception as e:
+            traceback.print_exc()
+
+
 if __name__ == "__main__":
-    vgg16 = VGG16(num_step=50, type=1, batch_size=16, gpu_num=0, file_name="")
-    vgg16.start()
+    for GPU in range(1,8):
+        path = f'./log/test_on_GPU{GPU}/'
+        if not os.path.exists(path):
+            os.makedirs(path)
+        vgg16 = VGG16(num_step=5000, type=2, batch_size=16, gpu_num=GPU, path=path, file_name=f"", n_class=1000, need_tosave=0)
+        vgg16.start()
 # #

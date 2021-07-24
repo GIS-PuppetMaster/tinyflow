@@ -1,3 +1,5 @@
+import traceback
+
 import numpy as np
 import imp, datetime
 from multiprocessing import Process
@@ -208,7 +210,7 @@ class ResNet50(Process):
             time2 = datetime.datetime.now()
             print("epoch", i + 1, "use", (time2 - time1).total_seconds()
                   , "\tstart", time1, "\tend", time2, file=self.f1)
-            print("ResNet num_step", i)
+            # print("ResNet num_step", i)
         start_finish_time = datetime.datetime.now()
         print((start_finish_time-start_time).total_seconds(), file=self.f3)
         hit_count, swap_count = t.get_hit()
@@ -224,33 +226,17 @@ class ResNet50(Process):
         self.f7.close()
 
     def run(self):
-        # if self.need_tosave != 0:
-        #     outspace = []
-        #     arr_size = self.need_tosave * 1e6 / 4
-        #     gctx = ndarray.gpu(0)
-        #     while arr_size > 0:
-        #         if arr_size > 10000 * 10000:
-        #             outspace.append(ndarray.array(np.ones((10000, 10000)) * 0.01, ctx=gctx))
-        #             arr_size -= 10000 * 10000
-        #         else:
-        #             need_sqrt = int(pow(arr_size, 0.5))
-        #             if need_sqrt <= 0:
-        #                 break
-        #             outspace.append(ndarray.array(np.ones((need_sqrt, need_sqrt)) * 0.01, ctx=gctx))
-        #             arr_size -= need_sqrt * need_sqrt
-        X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224
-        y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
+        try:
+            X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224
+            y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
 
-        record = record_GPU.record("ResNet50", self.type, self.gpu_num, self.path, self.file_name)
-        record.start()
+            record = record_GPU.record("ResNet50", self.type, self.gpu_num, self.path, self.file_name)
+            record.start()
 
-        print("ResNet50" + " type" + str(self.type) + " start")
-        self.res_net(num_step=self.num_step, n_class=1000, X_val=X_val, y_val=y_val)
-        print("ResNet50" + " type" + str(self.type) + " finish")
+            print("ResNet50" + " type" + str(self.type) + " start")
+            self.res_net(num_step=self.num_step, n_class=1000, X_val=X_val, y_val=y_val)
+            print("ResNet50" + " type" + str(self.type) + " finish")
 
-        record.stop()
-        # if self.need_tosave != 0:
-        #     for i in range(len(outspace) - 1, -1, -1):
-        #         outspace.pop(i)
-# resNet = ResNet50(num_step=10, type=2, batch_size=4, gpu_num=0, file_name="")
-# resNet.start()
+            record.stop()
+        except Exception as e:
+            traceback.print_exc()

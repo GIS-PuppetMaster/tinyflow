@@ -1,5 +1,7 @@
 # from pycode.tinyflow import autodiff_vdnn as ad
 # from pycode.tinyflow import gpu_op, train, ndarray, TrainExecute, TrainExecute_Adam_vDNNconv
+import traceback
+
 import numpy as np
 import imp, os, datetime
 
@@ -154,7 +156,7 @@ class DenseNet121(Process):
             time2 = datetime.datetime.now()
             print("epoch", i + 1, "use", (time2 - time1).total_seconds()
                   , "\tstart", time1, "\tend", time2, file=self.f1)
-            print("DenseNet num_step", i)
+            # print("DenseNet num_step", i)
         start_finish_time = datetime.datetime.now()
         print((start_finish_time-start_time).total_seconds(), file=self.f3)
         hit_count, swap_count = t.get_hit()
@@ -169,33 +171,21 @@ class DenseNet121(Process):
         self.f7.close()
 
     def run(self):
-        # if self.need_tosave != 0:
-        #     outspace = []
-        #     arr_size = self.need_tosave * 1e6 / 4
-        #     gctx = ndarray.gpu(0)
-        #     while arr_size > 0:
-        #         if arr_size > 10000 * 10000:
-        #             outspace.append(ndarray.array(np.ones((10000, 10000)) * 0.01, ctx=gctx))
-        #             arr_size -= 10000 * 10000
-        #         else:
-        #             need_sqrt = int(pow(arr_size, 0.5))
-        #             if need_sqrt <= 0:
-        #                 break
-        #             outspace.append(ndarray.array(np.ones((need_sqrt, need_sqrt)) * 0.01, ctx=gctx))
-        #             arr_size -= need_sqrt * need_sqrt
-        X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224
-        y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
+        try:
+            X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224
+            y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
 
-        record = record_GPU.record("DenseNet", self.type, self.gpu_num, self.path, self.file_name)
-        record.start()
+            record = record_GPU.record("DenseNet", self.type, self.gpu_num, self.path, self.file_name)
+            record.start()
 
-        print("DenseNet" + " type" + str(self.type) + " start")
+            print("DenseNet" + " type" + str(self.type) + " start")
 
-        self.dense_net(num_step=self.num_step, n_class=1000, X_val=X_val, y_val=y_val)
+            self.dense_net(num_step=self.num_step, n_class=1000, X_val=X_val, y_val=y_val)
 
-        print("DenseNet" + " type" + str(self.type) + " finish")
+            print("DenseNet" + " type" + str(self.type) + " finish")
 
-        record.stop()
-        # if self.need_tosave != 0:
-        #     for i in range(len(outspace) - 1, -1, -1):
-        #         outspace.pop(i)
+            record.stop()
+        except Exception as e:
+            traceback.print_exc()
+
+

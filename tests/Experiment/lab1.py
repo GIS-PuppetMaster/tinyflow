@@ -1,6 +1,7 @@
 import multiprocessing
 import os
 import sys
+import traceback
 from multiprocessing import Process
 
 import numpy as np
@@ -94,6 +95,12 @@ def Experiment1():
         print("Experiment1 start")
         net_name = net_names[net_id]
         for i, num_net in enumerate([1, 1, 2, 3]):
+            # if not ((net_id == 0 and i == 3) or (net_id == 3 and i == 3) or (net_id == 4 and (i == 2 or i == 3))):
+            #     continue
+            # if not (net_id == 4 and i == 3):
+            #     continue
+            # if i!=3:
+            #     continue
             if i == 0:
                 batch_size = 16
                 net_name_ = net_name
@@ -114,6 +121,8 @@ def Experiment1():
             for t in range(repeat_times):
                 print(f'repeat_times:{t}')
                 for type in range(3):  # type是调度方式的选择, 0.不调度 1.capuchin 2.vdnn
+                    # if type==1:
+                    #     continue
                     need_tosave = 0
                     if type == 1:
                         bud = vanilla_max_memory * (1 - budget[net_name][num_net][batch_size])
@@ -143,7 +152,10 @@ def Experiment1():
                         pipe2.close()
                     if type == 0:
                         vanilla_max_memory = get_vanilla_max_memory(path, repeat_times=repeat_times)
-            get_result(path, repeat_times=repeat_times, need_tosave=need_tosave_list)
+            try:
+                get_result(path, repeat_times=repeat_times, need_tosave=need_tosave_list, skip='capuchin')
+            except Exception as e:
+                traceback.print_exc()
             print("Experiment1 finish")
 
 
