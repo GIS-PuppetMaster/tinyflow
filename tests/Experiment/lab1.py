@@ -9,40 +9,36 @@ import numpy as np
 sys.path.append('../../')
 from pycode.tinyflow import ndarray
 from tests.Experiment import VGG16_test, ResNet50_test, DenseNet_test, InceptionV3_test, InceptionV4_test
-import random, time
+from tests.Experiment.result import get_result, get_vanilla_max_memory
 
-from tests.Experiment.log.result import get_result, get_vanilla_max_memory
-import pickle as pkl
-import time
-
-gpu = 1
+gpu = 0
 os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
 net_names = ['VGG', 'InceptionV3', 'InceptionV4', 'ResNet', 'DenseNet']
 budget = {
     'VGG': {
-        1: {2: 0.15293383270911362, 16: 0.3264440911499735},
-        2: {2: 0.17408086923144292},
-        3: {2: 0.2422420988339721}
+        1: {2: 0.19225967540574282, 16: 0.35050344462109173},
+        2: {2: 0.16605005389841376},
+        3: {2: 0.1669419047740918}
     },
     'InceptionV3': {
-        1: {2: 0.2967741935483871, 16: 0.5895117540687161},
-        2: {2: 0.31210824492341316},
-        3: {2: 0.2720903432502497}
+        1: {2: 0.24301075268817204, 16: 0.5574442435201928},
+        2: {2: 0.3043805833602411},
+        3: {2: 0.24857190980685862}
     },
     'InceptionV4': {
-        1: {2: 0.5022768670309654, 16: 0.647182313192941},
-        2: {2: 0.4145428496730023},
-        3: {2: 0.422244682222328}
+        1: {2: 0.50480109739369, 16: 0.627173128649216},
+        2: {2: 0.515406162464986},
+        3: {2: 0.42023152790143836}
     },
     'ResNet': {
-        1: {2: 0.25741399762752076, 16: 0.6708817498291183},
-        2: {2: 0.32907537538633647},
-        3: {2: 0.2964702300613243}
+        1: {2: 0.24476077500988533, 16: 0.6220095693779905},
+        2: {2: 0.32698945827648906},
+        3: {2: 0.2767580454161535}
     },
     'DenseNet': {
-        1: {2: 0.3854850474106491, 16: 0.7596731033485211},
-        2: {2: 0.27557542588794254},
-        3: {2: 0.21244023807335696}
+        1: {2: 0.38183807439824946, 16: 0.746799739639835},
+        2: {2: 0.2523519969688825},
+        3: {2: 0.210212894494957}
     }
 }
 
@@ -67,18 +63,19 @@ def generate_job(num_step, net_id, type, batch_size, path, need_tosave, file_nam
 
 def create_extra_matrix(need_tosave, pipe1, pipe2):
     outspace = []
-    arr_size = need_tosave * 1e6 / 4
+    arr_size = need_tosave * pow(2,20) / 4
     gctx = ndarray.gpu(0)
     while arr_size > 0:
-        if arr_size > 10000 * 10000:
-            outspace.append(ndarray.array(np.ones((10000, 10000)) * 0.01, ctx=gctx))
-            arr_size -= 10000 * 10000
+        if arr_size > 100000000:
+            outspace.append(ndarray.array(np.ones((100000000, ), dtype=np.float32) * 0.01, ctx=gctx))
+            arr_size -= 100000000
         else:
-            need_sqrt = int(pow(arr_size, 0.5))
-            if need_sqrt <= 0:
-                break
-            outspace.append(ndarray.array(np.ones((need_sqrt, need_sqrt)) * 0.01, ctx=gctx))
-            arr_size -= need_sqrt * need_sqrt
+            # need_sqrt = int(pow(arr_size, 0.5))
+            # if need_sqrt <= 0:
+            #     break
+            arr_size = int(arr_size)
+            outspace.append(ndarray.array(np.ones((arr_size, ), dtype=np.float32) * 0.01, ctx=gctx))
+            arr_size -= arr_size
     print('finish extra matrix generation')
     pipe1.put(True)
     while True:
@@ -95,11 +92,9 @@ def Experiment1():
         print("Experiment1 start")
         net_name = net_names[net_id]
         for i, num_net in enumerate([1, 1, 2, 3]):
+            if i==0:
+                continue
             # if not ((net_id == 0 and i == 3) or (net_id == 3 and i == 3) or (net_id == 4 and (i == 2 or i == 3))):
-            #     continue
-            # if not (net_id == 4 and i == 3):
-            #     continue
-            # if i!=3:
             #     continue
             if i == 0:
                 batch_size = 16
@@ -121,9 +116,6 @@ def Experiment1():
             for t in range(repeat_times):
                 print(f'repeat_times:{t}')
                 for type in range(3):  # type是调度方式的选择, 0.不调度 1.capuchin 2.vdnn
-                    # if type==1:
-                    #     continue
-                    need_tosave = 0
                     if type == 1:
                         bud = vanilla_max_memory * (1 - budget[net_name][num_net][batch_size])
                         # 总显存=预算+need_tosave(额外占用空间)
@@ -153,7 +145,7 @@ def Experiment1():
                     if type == 0:
                         vanilla_max_memory = get_vanilla_max_memory(path, repeat_times=repeat_times)
             try:
-                get_result(path, repeat_times=repeat_times, need_tosave=need_tosave_list, skip='capuchin')
+                get_result(path, repeat_times=repeat_times, need_tosave=need_tosave_list)
             except Exception as e:
                 traceback.print_exc()
             print("Experiment1 finish")
@@ -161,4 +153,4 @@ def Experiment1():
 
 if __name__ == "__main__":
     Experiment1()
-# get_result('./log/VGG x2/', repeat_times=3, need_tosave=[0,0,0])
+    # get_result('./log/InceptionV3 x1/', repeat_times=3, need_tosave=[7480,9060,9848])

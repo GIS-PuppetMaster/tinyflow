@@ -5,6 +5,7 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <algorithm>
+#include <math.h>
 //��
 #include <cudnn.h>
 #include <stdlib.h>
@@ -3611,7 +3612,7 @@ int DLGpuDropoutForward(const DLArrayHandle input,
         seed);
      if(err == CUDNN_STATUS_EXECUTION_FAILED){\
          //printf("出错了");
-        *memorytoSaving = 100*1e6;
+        *memorytoSaving = 10*pow(2,20);
 
           cudaFree(states);
           cudaFree(*reserveSpace_p);

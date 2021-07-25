@@ -1,0 +1,15 @@
+pandas==1.1.5
+line_profiler==3.2.6
+yagmail==0.14.247
+torch==1.8.1
+numpy
+Keras==2.4.3
+nvidia_ml_py3==7.352.0
+tensorflow==2.4.1
+setproctitle==1.2.2
+tensorboard==2.4.1
+plotly==4.14.3
+matplotlib==2.1.1
+scipy==1.5.4
+pynvml==11.0.0
+tensorpack==0.11

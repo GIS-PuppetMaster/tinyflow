@@ -120,11 +120,11 @@ def get_result(path, repeat_times, net_order=0, need_tosave=None, skip=None):
         res.writelines(f'extra_overhead:{all_vdnn_EOR.mean()} +- {all_vdnn_EOR.std()}\n')
         res.writelines(f'efficiency:{all_vdnn_MSR.mean() / all_vdnn_EOR.mean()}\n\n')
     else:
-        res.writelines(f'max_memory:{0} +- {0}\n')
-        res.writelines(f'time:{0} +- {0}\n')
-        res.writelines(f'memory_saved:{0} +- {0}\n')
-        res.writelines(f'extra_overhead:{0} +- {0}\n')
-        res.writelines(f'efficiency:{0}\n\n')
+        res.writelines(f'max_memory:nan +- nan\n')
+        res.writelines(f'time:nan +- nan\n')
+        res.writelines(f'memory_saved:nan +- nan\n')
+        res.writelines(f'extra_overhead:nan +- nan\n')
+        res.writelines(f'efficiency:nan\n\n')
 
     res.writelines('capuchin:\n')
     if skip!='capuchin':
@@ -134,11 +134,13 @@ def get_result(path, repeat_times, net_order=0, need_tosave=None, skip=None):
         res.writelines(f'extra_overhead:{all_capuchin_EOR.mean()} +- {all_capuchin_EOR.std()}\n')
         res.writelines(f'efficiency:{all_capuchin_MSR.mean() / all_capuchin_EOR.mean()}\n\n')
     else:
-        res.writelines(f'max_memory:{0} +- {0}\n')
-        res.writelines(f'time:{0} +- {0}\n')
-        res.writelines(f'memory_saved:{0} +- {0}\n')
-        res.writelines(f'extra_overhead:{0} +- {0}\n')
-        res.writelines(f'efficiency:{0}\n\n')
+        res.writelines(f'max_memory:nan +- nan\n')
+        res.writelines(f'time:nan +- nan\n')
+        res.writelines(f'memory_saved:nan +- nan\n')
+        res.writelines(f'extra_overhead:nan +- nan\n')
+        res.writelines(f'efficiency:nan\n\n')
+    res.flush()
+    res.close()
 
 
 
@@ -165,4 +167,4 @@ def get_vanilla_max_memory(path, repeat_times, net_order=0):
 
 
 if __name__ == '__main__':
-    get_result('./VGG/', repeat_times=1, need_tosave=[5770.907183725366, 5771.339125520944, 6711.676414494596])
+    get_result('log/VGG/', repeat_times=1, need_tosave=[5770.907183725366, 5771.339125520944, 6711.676414494596])

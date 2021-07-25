@@ -12,7 +12,7 @@ import random, time
 import pickle as pkl
 from lab1 import budget, net_names
 
-gpu = 1
+gpu = 0
 methods = ['vanilla', 'capuchin', 'vdnn']
 
 

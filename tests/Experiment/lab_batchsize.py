@@ -2,9 +2,8 @@ import os
 import sys
 sys.path.append('../../')
 from tests.Experiment import VGG16_test, ResNet50_test, DenseNet_test, InceptionV3_test, InceptionV4_test
-import random, time
 
-from tests.Experiment.log.result import get_result
+from tests.Experiment.result import get_result
 from lab1 import budget, net_names
 
 gpu = 1

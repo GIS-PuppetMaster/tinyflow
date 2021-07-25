@@ -180,7 +180,7 @@ class VGG16(Process):
 
             print("epoch", i + 1, "use", (time2 - time1).total_seconds()
                   , "\tstart", time1, "\tend", time2, file=self.f1)
-            # print(f"VGG16 num_step {i}")
+            print(f"VGG16 num_step {i}")
         start_finish_time = datetime.datetime.now()
         print((start_finish_time - start_time).total_seconds(), file=self.f3)
         # print(f'time_cost:{(start_finish_time-start_time).total_seconds()}')
