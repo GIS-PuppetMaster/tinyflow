@@ -93,8 +93,6 @@ def Experiment1():
         print("Experiment1 start")
         net_name = net_names[net_id]
         for i, num_net in enumerate([1, 1, 2, 3]):
-            if i==0:
-                continue
             # if not ((net_id == 0 and i == 3) or (net_id == 3 and i == 3) or (net_id == 4 and (i == 2 or i == 3))):
             #     continue
             if i == 0:
