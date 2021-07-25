@@ -331,7 +331,6 @@ class TrainExecutor(object):
 
 
         else:
-            time1=time.time()
             node_computed = set()
             for idx in range(len(self.topo_order)):
                 node = self.topo_order[idx]
@@ -395,7 +394,6 @@ class TrainExecutor(object):
                     # value都存在self.node_to_arr_map
                     index_to_gpu_map[idx] = ret
                     node.array_status = 1
-
                 input_vals = []
                 for input_node in node.inputs:
                     policy = self.policy_run(input_node)
@@ -413,15 +411,12 @@ class TrainExecutor(object):
                         index_to_cpu_flag[input_node.index] = False
                     input_vals.append(index_to_gpu_map[input_node.index])
 
-                    if policy == 1 or prior_policy == 1:
+                    if policy == 1 or prior_policy == 1 :
                         self.tensor_evict(input_node)
                     elif prior_policy == 3:
                         self.tensor_free(input_node)
                     elif input_node.isw == 0 and (self.capu.tensor_access_list[self.access_index - 1][1] == input_node.access_count):
-
                         self.tensor_free(input_node)
-
-
                 node_val = index_to_gpu_map[idx]
                 memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
                 if memorytoSaving != 0:
@@ -464,21 +459,28 @@ class TrainExecutor(object):
                         index_to_gpu_map[node.index].free_gpu()
                     index_to_gpu_map[node.index]=None
                 index_to_cpu_flag[node.index]=False
+                node.array_status=-1
             elif node.array_status == 0 and index_to_cpu_flag[node.index]==False:
                 self.arrive_to_cpu(node)
 
 
     def policy_run(self, input_node):
         global swap_in_id
+        global swap_in_flag
         policy = self.capu.policy[self.access_index]
+        # print(input_node,input_node.array_status,policy,index_to_cpu_flag[input_node.index])
         if policy == 2:
             swap_id = self.capu.swap[self.access_index]
             swap_node = self.topo_order[swap_id]
+            if swap_id==154:
+                print(swap_node.array_status)
             if swap_node.array_status == 0:
                 self.arrive_to_cpu(swap_node)
                 self.will_do_queue.put((swap_id,1))
                 swap_node.array_status = 1
-            swap_in_id=swap_id
+            else:
+                swap_in_id=swap_id
+                swap_in_flag=True
             self.reflush_access.append(self.access_index)
         elif policy == 5:
             if index_to_cpu_flag[input_node.index] != False :
