@@ -2142,7 +2142,7 @@ def nodelist_to_name(nodelist):
 #
 #         # 根据这个topo_order算
 #         self.topo_order = find_topo_sort(self.eval_node_list)
-#         self.topo_order = swapadam(self.topo_order)
+#         self.topo_order = swap_adam(self.topo_order)
 #         #按网络顺序
 #         self.Variable_node_list.reverse()
 #         self.eval_node_list = []

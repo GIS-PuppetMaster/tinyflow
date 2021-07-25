@@ -83,7 +83,7 @@ class TrainExecutor(object):
         self.ctx = ctx
         # 根据这个topo_order算
         self.topo_order = ad.find_topo_sort(self.eval_node_list)
-        self.topo_order = swapadam(self.topo_order)
+        self.topo_order = swap_adam(self.topo_order)
 
         # 存node的shape
         self.node_to_shape_map = None
@@ -249,7 +249,7 @@ class TrainExecutor(object):
                 for n in node.inputs:
                     self.tensor_accsess(n)
                     if n.array_status==0:
-                        if index_to_cpu_flag[n.index]==False:
+                        while index_to_cpu_flag[n.index]==False:
                             continue
                         ret = ndarray.empty(self.node_to_shape_map[n], self.ctx)
                         if isinstance(ret, int):
@@ -262,7 +262,7 @@ class TrainExecutor(object):
                         index_to_cpu_flag[n.index]=False
                     input_vals.append(index_to_gpu_map[n.index])
 
-
+                print(node.inputs)
                 # 除了SgdOp，其他的点此时要保证在gpu中
                 node_val = index_to_gpu_map[idx]
 
@@ -715,23 +715,23 @@ def getcomputelist(Variable_node_list, Variable_node_grad_list, b1, b2, b1t, b2t
     return computelist, mv, Variable_node_to_mv
 
 
-def swapadam(topoorder):
-    for i in range(len(topoorder)):
-        if topoorder[i].issgd == 1 and topoorder[i].isw == 0:
-            topoorder[i].isw = 3
-            filter = topoorder[i].inputs[0]
-            j = len(topoorder) - 1
+def swap_adam(t_order):
+    for i in range(len(t_order)):
+        if t_order[i].issgd == 1 and t_order[i].isw == 0:
+            t_order[i].isw = 3
+            filter = t_order[i].inputs[0]
+            j = len(t_order) - 1
             while j > i:
-                if topoorder[j].issgd == 1:
+                if t_order[j].issgd == 1:
                     j = j - 1
                     continue
-                if filter in topoorder[j].inputs:
+                if filter in t_order[j].inputs:
                     break
                 j = j - 1
 
-            tmp = topoorder[i]
-            topoorder.remove(tmp)
-            topoorder.insert(j, tmp)
+            tmp = t_order[i]
+            t_order.remove(tmp)
+            t_order.insert(j, tmp)
     # for i in range(len(topoorder)):
     #     print(i,topoorder[i])
-    return topoorder
+    return t_order

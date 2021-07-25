@@ -1,6 +1,7 @@
 import multiprocessing
 import os
 import sys
+import time
 import traceback
 from multiprocessing import Process
 
@@ -118,7 +119,8 @@ def Experiment1():
                 for type in range(3):  # type是调度方式的选择, 0.不调度 1.capuchin 2.vdnn
                     if type == 1:
                         bud = vanilla_max_memory * (1 - budget[net_name][num_net][batch_size])
-                        # 总显存=预算+need_tosave(额外占用空间)
+                        # 总显存=预算+need_tosave+cuda开销(额外占用空间)
+                        # need_tosave = 11019 - bud - 536
                         need_tosave = 11019 - bud
                         print(f'need_tosave:{need_tosave}')
                         need_tosave_list.append(need_tosave)
@@ -153,4 +155,9 @@ def Experiment1():
 
 if __name__ == "__main__":
     Experiment1()
+    # from pycode.tinyflow import gpu_op
+    # cudaStream = gpu_op.create_cudaStream()
+    # cudnnHandle = gpu_op.create_cudnnHandle(cudaStream)
+    # cublasHandle = gpu_op.create_cublasHandle(cudaStream)
+    # time.sleep(1000)
     # get_result('./log/InceptionV3 x1/', repeat_times=3, need_tosave=[7480,9060,9848])
