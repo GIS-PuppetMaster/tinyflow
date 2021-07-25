@@ -248,8 +248,8 @@ class TrainExecutor(object):
                 input_vals = []
                 for n in node.inputs:
                     self.tensor_accsess(n)
-                    if n.array_status==0:
-                        while index_to_cpu_flag[n.index]==False:
+                    while n.array_status==0:
+                        if index_to_cpu_flag[n.index]==False:
                             continue
                         ret = ndarray.empty(self.node_to_shape_map[n], self.ctx)
                         if isinstance(ret, int):
@@ -262,7 +262,6 @@ class TrainExecutor(object):
                         index_to_cpu_flag[n.index]=False
                     input_vals.append(index_to_gpu_map[n.index])
 
-                print(node.inputs)
                 # 除了SgdOp，其他的点此时要保证在gpu中
                 node_val = index_to_gpu_map[idx]
 
