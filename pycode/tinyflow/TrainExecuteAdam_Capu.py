@@ -36,6 +36,8 @@ class MemoryManager(threading.Thread):
 
 
             if move_to_gpu == 0:
+                if index_to_gpu_map[node_index]==None:
+                    continue
                 node_ndarray = index_to_gpu_map[node_index]
                 node_ndarray.copyto(index_to_cpu_map[node_index], self.cudaSwapStream)
                 index_to_cpu_flag[node_index] = True
@@ -528,7 +530,7 @@ class TrainExecutor(object):
         return self.node_order
 
     def isevict(self, dnode, node):
-        if (dnode not in node.inputs) and dnode != node and dnode.array_status == 1:
+        if (dnode not in node.inputs) and dnode != node and dnode.array_status == 1 :
             return True
         else:
             return False
