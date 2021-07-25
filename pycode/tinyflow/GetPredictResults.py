@@ -16,9 +16,9 @@ def get_predict_results(batch_size, num_step, log_path, job_id, model, **kwargs)
 
 
 if __name__ == '__main__':
-    if not os.path.exists('./log/tempschedule/'):
-        os.makedirs('./log/tempschedule/')
-    log_path = f'./log/tempschedule/'
+    if not os.path.exists('./log/temp/schedule/'):
+        os.makedirs('./log/temp/schedule/')
+    log_path = f'./log/temp/schedule/'
     model_list = [VGG16, Inceptionv3, Inceptionv4, ResNet50, DenseNet121]
     predict_results = [get_predict_results(2, 50, log_path, job_id, model_list[job_id]) for job_id in
                        range(len(model_list))]

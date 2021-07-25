@@ -17,7 +17,7 @@ from pycode.tinyflow.get_result import get_result
 from util import GPURecord
 
 
-def run_model(raw_log_path, model: list, top_control_queue_list, top_message_queue_list, num_step, batch_size, **kwargs):
+def run_model(raw_log_path, model: list, top_control_queue_list, top_message_queue_list, num_step, batch_size, recorder, **kwargs):
     job_number = len(model)
     global_message_queue = multiprocessing.Queue()
     global_control_queue = multiprocessing.Queue()
@@ -36,6 +36,8 @@ def run_model(raw_log_path, model: list, top_control_queue_list, top_message_que
     job_pool = [Process(target=m.run,
                         args=(ndarray.gpu(0), top_control_queue_list[i], top_message_queue_list[i], 1000, np.random.normal(loc=0, scale=0.1, size=(m.batch_size, m.image_channel, m.image_size, m.image_size)),
                               np.random.normal(loc=0, scale=0.1, size=(m.batch_size, 1000))), kwargs=dict(predict_results=kwargs['predict_results'][m.__class__.__name__])) for i, m in enumerate(inited_model)]
+    recorder.start()
+    start_time = time.time()
     for job in job_pool:
         job.start()
     if 'schedule' in raw_log_path:
@@ -78,15 +80,17 @@ def run_model(raw_log_path, model: list, top_control_queue_list, top_message_que
             q.close()
     for job in job_pool:
         job.terminate()
+    recorder.stop()
     while not global_control_queue.empty():
         global_control_queue.get()
     global_control_queue.close()
     while not global_message_queue.empty():
         global_message_queue.get()
     global_message_queue.close()
+    return start_time
 
 
-if __name__ == '__main__':
+def MDW():
     with open(f'../../res/inferred_shape.pkl', 'rb') as f:
         predict_results = pkl.load(f)
     repeat_times = 3
@@ -96,19 +100,16 @@ if __name__ == '__main__':
             os.makedirs(log_path)
         # =======================vanilla===================== #
         print(f'vanilla,repeat:{t}')
-        recorder = GPURecord(log_path)
+        recorder = GPURecord(log_path, suffix='_cold_start')
         f1 = open(f"{log_path}/gpu_time_cold_start.txt", "w+")
         top_control_queue_list = []
         top_message_queue_list = []
         model_list = [VGG16, Inceptionv3, Inceptionv4, ResNet50, DenseNet121]
         np.random.shuffle(model_list)
-        recorder.start()
-        start_time = time.time()
-        run_model(log_path, model_list, top_control_queue_list, top_message_queue_list, 50, 2, predict_results=predict_results)
+        start_time = run_model(log_path, model_list, top_control_queue_list, top_message_queue_list, 50, 2, predict_results=predict_results, recorder=recorder)
         f1.write(f'time_cost:{time.time() - start_time}')
         f1.flush()
         f1.close()
-        recorder.stop()
         # =======================schedule===================== #
         print(f'schedule,repeat:{t}')
         log_path = f'./log/MDW/repeat_{t}/schedule'
@@ -120,12 +121,12 @@ if __name__ == '__main__':
         top_message_queue_list = []
         model_list = [VGG16, Inceptionv3, Inceptionv4, ResNet50, DenseNet121]
         np.random.shuffle(model_list)
-        res = []
-        recorder.start()
-        start_time = time.time()
-        run_model(log_path, model_list, top_control_queue_list, top_message_queue_list, 50, 2, predict_results=predict_results)
+        start_time = run_model(log_path, model_list, top_control_queue_list, top_message_queue_list, 50, 2, predict_results=predict_results, recorder=recorder)
         f1.write(f'time_cost:{time.time() - start_time}')
         f1.flush()
         f1.close()
-        recorder.stop()
-    get_result(raw_workload='./log/MDW/', repeat_times=repeat_times)
+    get_result(raw_workload='./log/MDW/', repeat_times=repeat_times, with_cold_start=False)
+
+
+if __name__ == '__main__':
+    MDW()

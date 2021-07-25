@@ -1,3 +1,5 @@
+import os
+
 from matplotlib import pyplot as plt
 import pandas as pd
 import numpy as np
@@ -10,6 +12,8 @@ make_csv()
 net_type = ['VGG', 'InceptionV3', 'InceptionV4', 'ResNet', 'DenseNet']
 method_type = ['TENSILE', 'vDNN', 'Capuchin']
 df_list = []
+if not os.path.exists('../../pic/'):
+    os.makedirs('../../pic/')
 with open('./log/MultiWorkloadsMSR.csv') as f:
     df = pd.read_csv(f, index_col=False)
     df_list.append(df)
@@ -90,7 +94,7 @@ for i in range(5):
     lines_labels = [fig.axes[0].get_legend_handles_labels()]
     lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
     fig.legend(lines, labels)
-fig.savefig(f'./log/pic/MultiWorkloads.png')
+fig.savefig(f'../../pic/MultiWorkloads.png')
 fig.show()
 plt.figure(figsize=plt.rcParams['figure.figsize'])
 with open('./log/BatchSizeMSR.csv') as f:
@@ -103,7 +107,7 @@ for i, net in enumerate(net_type):
 plt.legend(net_type)
 plt.xlabel('batch size')
 plt.ylabel('Memory Saving Ratio')
-plt.savefig('./log/pic/BatchSizeMSR.png')
+plt.savefig('../../pic/BatchSizeMSR.png')
 plt.show()
 
 with open('./log/BatchSizeEOR.csv') as f:
@@ -118,7 +122,7 @@ for i, net in enumerate(net_type):
 plt.legend(net_type)
 plt.xlabel('batch size')
 plt.ylabel('Extra Overhead Ratio')
-plt.savefig('./log/pic/BatchSizeEOR.png')
+plt.savefig('../../BatchSizeEOR.png')
 plt.show()
 
 with open('./log/BatchSizeCBR.csv') as f:
@@ -133,5 +137,5 @@ for i, net in enumerate(net_type):
 plt.legend(net_type)
 plt.xlabel('batch size')
 plt.ylabel('Cost Benefit Ratio')
-plt.savefig('./log/pic/BatchSizeCBR.png')
+plt.savefig('../..//BatchSizeCBR.png')
 plt.show()

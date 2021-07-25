@@ -1,8 +1,8 @@
 from __future__ import absolute_import
 
 import ctypes
-from ._base import _LIB,c_array
-from . import ndarray as _nd
+from pycode.tinyflow._base import _LIB,c_array
+import pycode.tinyflow.ndarray as _nd
 from pycode.tinyflow.ndarray import NDArray
 
 def create_cudaStream():

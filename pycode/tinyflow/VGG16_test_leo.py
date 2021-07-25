@@ -403,19 +403,22 @@ def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
 
 
 if __name__ == '__main__':
-    def main():
-        num_step = 50
-        batch_size = 16
-        log_path = './log/VGG test/vanilla/'
-        job_id = 0
-        model = VGG16(num_step=num_step, batch_size=batch_size, log_path=log_path, job_id=job_id)
-        X_val = np.random.normal(loc=0, scale=0.1, size=(
-            batch_size, model.image_channel, model.image_size, model.image_size))  # number = batch_size  channel = 3  image_size = 224*224
-
-        y_val = np.random.normal(loc=0, scale=0.1, size=(batch_size, 1000))  # n_class = 1000
-        model.run(ndarray.gpu(0),  multiprocessing.Queue(), multiprocessing.Queue(), 1000, X_val, y_val)
-
-    main()
+    run_exp([['./log/VGG_test/', 3, 1, 16]])
+    # def main():
+    #     num_step = 50
+    #     batch_size = 16
+    #     log_path = './log/VGG test/vanilla/'
+    #     if not os.path.exists(log_path):
+    #         os.makedirs(log_path)
+    #     job_id = 0
+    #     model = VGG16(num_step=num_step, batch_size=batch_size, log_path=log_path, job_id=job_id)
+    #     X_val = np.random.normal(loc=0, scale=0.1, size=(
+    #         batch_size, model.image_channel, model.image_size, model.image_size))  # number = batch_size  channel = 3  image_size = 224*224
+    #
+    #     y_val = np.random.normal(loc=0, scale=0.1, size=(batch_size, 1000))  # n_class = 1000
+    #     model.run(ndarray.gpu(0),  multiprocessing.Queue(), multiprocessing.Queue(), 1000, X_val, y_val)
+    #
+    # main()
     # lp = LineProfiler()
     # lp.add_function(autodiff.Executor.run)
     # lp_wrapper = lp(main)
