@@ -173,7 +173,7 @@ class VGG16(Process):
         start_time = datetime.datetime.now()
 
         for i in range(num_step):
-            print(f"VGG16 num_step {i}")
+            # print(f"VGG16 num_step {i}")
             time1 = datetime.datetime.now()
             t.run({self.X: X_val, self.y_: y_val})
 
@@ -196,7 +196,7 @@ class VGG16(Process):
         self.f7.close()
 
     def run(self):
-        try:
+        # try:
             X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224
             y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
 
@@ -210,8 +210,8 @@ class VGG16(Process):
             print("VGG16" + " type" + str(self.type) + " finish")
 
             record.stop()
-        except Exception as e:
-            traceback.print_exc()
+        # except Exception as e:
+        #     traceback.print_exc()
 
 
 if __name__ == "__main__":

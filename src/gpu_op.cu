@@ -3620,6 +3620,7 @@ int DLGpuDropoutForward(const DLArrayHandle input,
     }\
     if (err != CUDNN_STATUS_SUCCESS) {\
         \
+            printf("出错了");
             std::cout << "    Error occurred: " << err << std::endl; \
             std::exit(1); \
     } \

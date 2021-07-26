@@ -205,12 +205,13 @@ class ResNet50(Process):
         t.init_Variable(feed_dict)
         start_time = datetime.datetime.now()
         for i in range(num_step):
+            # print("ResNet num_step", i)
             time1 = datetime.datetime.now()
             t.run({X: X_val, y_: y_val})
             time2 = datetime.datetime.now()
             print("epoch", i + 1, "use", (time2 - time1).total_seconds()
                   , "\tstart", time1, "\tend", time2, file=self.f1)
-            # print("ResNet num_step", i)
+
         start_finish_time = datetime.datetime.now()
         print((start_finish_time-start_time).total_seconds(), file=self.f3)
         hit_count, swap_count = t.get_hit()

@@ -348,6 +348,7 @@ class Inceptionv4(Process):
         t.init_Variable(feed_dict)
         start_time = datetime.datetime.now()
         for i in range(self.num_step):
+            # print(f"v4 num_step {i}")
             time1 = datetime.datetime.now()
             t.run({X: X_val, Y_: Y_val})
             time2 = datetime.datetime.now()

@@ -578,6 +578,7 @@ class Inceptionv3(Process):
             ,filtera1:filtera1val,W:W_val,b:b_val})
         start_time = datetime.datetime.now()
         for i in range(self.num_step):
+            # print(f"v3 num_step {i}")
             time1 = datetime.datetime.now()
             t.run({X: X_val, y_: y_val})
             time2 = datetime.datetime.now()
@@ -599,7 +600,7 @@ class Inceptionv3(Process):
 
         return 0
     def run(self):
-        try:
+        # try:
             record = record_GPU.record("InceptionV3", self.type, self.gpu_num, self.path, self.file_name)
             record.start()
             print("InceptionV3" + " type" + str(self.type) + " start")
@@ -607,5 +608,5 @@ class Inceptionv3(Process):
             self.inception_v3()
             print("InceptionV3" + " type" + str(self.type) + " finish")
             record.stop()
-        except Exception as e:
-            traceback.print_exc()
+        # except Exception as e:
+        #     traceback.print_exc()

@@ -95,12 +95,16 @@ def Experiment1():
         for i, num_net in enumerate([1, 1, 2, 3]):
             # if not ((net_id == 0 and i == 3) or (net_id == 3 and i == 3) or (net_id == 4 and (i == 2 or i == 3))):
             #     continue
+            # if i==1 or i==2 or i==3:
+            #     continue
+
             if i == 0:
                 batch_size = 16
                 net_name_ = net_name
             else:
                 batch_size = 2
                 net_name_ = net_name + f' x{i}'
+            print("batch_size",batch_size)
             path = f'./log/{net_name_}/'
             print(path)
             if not os.path.exists(path):
@@ -110,11 +114,17 @@ def Experiment1():
                 # net_id = random.randint(0, 4) #net_id随机选取网络种类 0:vgg16, 1:inceptionv3, 2:inceptionv4, 3:resNet, 4:denseNet
                 nets.append(net_id)
             print("选取的网络", list(map(lambda x: net_names[x], nets)))
+            # if net_id==0 or net_id==1 or net_id==2:
+            #     continue
+            if net_id <=1:
+                break
             vanilla_max_memory = 0
             need_tosave_list = []
             for t in range(repeat_times):
                 print(f'repeat_times:{t}')
                 for type in range(3):  # type是调度方式的选择, 0.不调度 1.capuchin 2.vdnn
+                    # if type !=2:
+                    #     continue
                     if type == 1:
                         bud = vanilla_max_memory * (1 - budget[net_name][num_net][batch_size])
                         # 总显存=预算+need_tosave+cuda开销(额外占用空间)
@@ -144,10 +154,10 @@ def Experiment1():
                         pipe2.close()
                     if type == 0:
                         vanilla_max_memory = get_vanilla_max_memory(path, repeat_times=repeat_times)
-            try:
-                get_result(path, repeat_times=repeat_times, need_tosave=need_tosave_list)
-            except Exception as e:
-                traceback.print_exc()
+            # try:
+            get_result(path, repeat_times=repeat_times, need_tosave=need_tosave_list)
+            # except Exception as e:
+            #     traceback.print_exc()
             print("Experiment1 finish")
 
 
