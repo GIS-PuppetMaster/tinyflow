@@ -116,8 +116,8 @@ def Experiment1():
             print("选取的网络", list(map(lambda x: net_names[x], nets)))
             # if net_id==0 or net_id==1 or net_id==2:
             #     continue
-            if net_id <=1:
-                break
+            # if net_id <=1:
+            #     break
             vanilla_max_memory = 0
             need_tosave_list = []
             for t in range(repeat_times):
