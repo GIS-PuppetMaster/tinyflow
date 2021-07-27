@@ -3610,7 +3610,7 @@ int DLGpuDropoutForward(const DLArrayHandle input,
         states,
         stateSizeInBytes,
         seed);
-     if(err == CUDNN_STATUS_EXECUTION_FAILED){\
+     if(err != CUDNN_STATUS_SUCCESS){\
          //printf("出错了");
         *memorytoSaving = 10*pow(2,20);
 
