@@ -6,6 +6,7 @@ from pycode.tinyflow import autodiff_capu as ad
 import datetime
 import queue
 import threading
+import pynvml
 
 index_to_cpu_map = {}
 index_to_cpu_flag = {}
@@ -66,8 +67,8 @@ class MemoryManager(threading.Thread):
 class TrainExecutor(object):
     """Executor computes values for given set of nodes in computation graph."""
 
-    def __init__(self, targetloss, learning_rate=0.001, need_tosave=None, ctx=ndarray.gpu(0)):
-        self.need_tosave = need_tosave
+    def __init__(self, targetloss, learning_rate=0.001, Maxmem=None, ctx=ndarray.gpu(0)):
+        self.maxmem=Maxmem*1024*1024
         self.b1 = 0.9
         self.b2 = 0.999
         self.e = 0.00000001
@@ -186,7 +187,7 @@ class TrainExecutor(object):
             # 把shape放进self.node_to_shape_map
             self.infer_shape(feed_shapes)
             for node in self.node_to_shape_map:
-                index_to_cpu_map[node.index] = ndarray.empty(self.node_to_shape_map[node], self.ctx_cpu)
+                index_to_cpu_map[node.index] = ndarray.empty(self.node_to_shape_map[node])
 
             for node in self.topo_order:
                 node.srcs = list(node.inputs)
@@ -215,7 +216,7 @@ class TrainExecutor(object):
                 if node in feed_dict.keys():
                     # 申请空间
 
-                    ret = ndarray.array(feed_dict[node], ctx=self.ctx)
+                    ret = ndarray.array(feed_dict[node], ctx=self.ctx,maxmem=self.maxmem)
                     if isinstance(ret, int):
                         self.getpeekaccess()
                         need_tomem += ret
@@ -236,7 +237,7 @@ class TrainExecutor(object):
                     while n.array_status==0:
                         if index_to_cpu_flag[n.index]==False:
                             continue
-                        ret = ndarray.empty(self.node_to_shape_map[n], self.ctx)
+                        ret = ndarray.empty(self.node_to_shape_map[n], self.ctx,self.maxmem)
                         if isinstance(ret, int):
                             self.getpeekaccess()
                             need_tomem += ret
@@ -252,7 +253,7 @@ class TrainExecutor(object):
                     # 给这个点申请内存
                     # 申请空间
                     t1 = time.time()
-                    ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx)
+                    ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem)
                     t2 = time.time()
                     if isinstance(ret, int):
                         self.getpeekaccess()
@@ -288,6 +289,7 @@ class TrainExecutor(object):
                                 break
                     # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
                     while True:
+                        print(node)
                         tic = time.time()
                         memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle,self.cublasHandle, self.cudaStream)
                         toc = time.time()
@@ -346,7 +348,7 @@ class TrainExecutor(object):
                 # 是inputs
                 if node in feed_dict.keys():
 
-                    ret = ndarray.array(feed_dict[node], ctx=self.ctx)
+                    ret = ndarray.array(feed_dict[node], ctx=self.ctx,maxmem=self.maxmem)
                     if isinstance(ret, int):
                         ret = self.tensors_evict(ret, node, node, feed_dict[node],flag=False)
                     index_to_gpu_map[idx] = ret
@@ -361,7 +363,7 @@ class TrainExecutor(object):
                         continue
                     else:
                         # 没在GPU中,重新在GPU申请空间
-                        ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx)
+                        ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem)
                         if isinstance(ret, int):
                             ret = self.tensors_evict(ret, node, node)
                         # 此时ret为ndarray
@@ -379,7 +381,7 @@ class TrainExecutor(object):
                         continue
                     else:
                         # 没在GPU中,重新在GPU申请空间
-                        ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx)
+                        ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem)
                         if isinstance(ret, int):
                             ret = self.tensors_evict(ret, node, node)
                         # 此时ret为ndarray
@@ -399,7 +401,7 @@ class TrainExecutor(object):
                     prior_policy = self.prior_policy_run(input_node, node)
                     if input_node.array_status == 0:
                         self.arrive_to_cpu(input_node)
-                        ret = ndarray.empty(self.node_to_shape_map[input_node], ctx=self.ctx)
+                        ret = ndarray.empty(self.node_to_shape_map[input_node], ctx=self.ctx,maxmem=self.maxmem)
                         if isinstance(ret, int):
                             ret = self.tensors_evict(ret, input_node, node)
                         # 此时ret为ndarray
@@ -418,7 +420,7 @@ class TrainExecutor(object):
                         self.tensor_free(input_node)
 
                 if node.issgd == 0:
-                    ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx)
+                    ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem)
                     if isinstance(ret, int):
                         ret = self.tensors_evict(ret, node, node)
                     # 此时ret为ndarray
@@ -511,7 +513,7 @@ class TrainExecutor(object):
         if prior_policy == 2:
             if input_node.array_status == 0 :
                 self.arrive_to_cpu(input_node)
-                ret = ndarray.empty(self.node_to_shape_map[input_node], ctx=self.ctx)
+                ret = ndarray.empty(self.node_to_shape_map[input_node], ctx=self.ctx,maxmem=self.maxmem)
                 if isinstance(ret, int):
                     ret = self.tensors_evict(ret, input_node, node)
                 # 此时ret为ndarray
@@ -556,7 +558,7 @@ class TrainExecutor(object):
 
             if n.array_status == 0:
                self.arrive_to_cpu(n)
-               ret = ndarray.empty(self.node_to_shape_map[n], ctx=self.ctx)
+               ret = ndarray.empty(self.node_to_shape_map[n], ctx=self.ctx,maxmem=self.maxmem)
                if isinstance(ret, int):
                    ret = self.tensors_evict_rep(ret, n, node,rep_node)
                # 此时ret为ndarray
@@ -570,7 +572,7 @@ class TrainExecutor(object):
             input_vals.append(index_to_gpu_map[n.index])
 
         # 申请重算结果地址
-        ret = ndarray.empty(self.node_to_shape_map[rep_node], ctx=self.ctx)
+        ret = ndarray.empty(self.node_to_shape_map[rep_node], ctx=self.ctx,maxmem=self.maxmem)
         if isinstance(ret, int):
             ret = self.tensors_evict_rep(ret, rep_node, node, rep_node)
         index_to_gpu_map[rep_node.index] = ret
@@ -630,9 +632,9 @@ class TrainExecutor(object):
         # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
         while True:
             if flag:
-                ret = ndarray.empty(self.node_to_shape_map[n], ctx=self.ctx)
+                ret = ndarray.empty(self.node_to_shape_map[n], ctx=self.ctx,maxmem=self.maxmem)
             else:
-                ret = ndarray.array(feed, ctx=self.ctx)
+                ret = ndarray.array(feed, ctx=self.ctx,maxmem=self.maxmem)
 
             if not isinstance(ret, int):
                 break
@@ -657,9 +659,9 @@ class TrainExecutor(object):
         # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
         while True:
             if feed==None:
-                ret = ndarray.empty(self.node_to_shape_map[n], ctx=self.ctx)
+                ret = ndarray.empty(self.node_to_shape_map[n], ctx=self.ctx,maxmem=self.maxmem)
             else:
-                ret = ndarray.array(feed, ctx=self.ctx)
+                ret = ndarray.array(feed, ctx=self.ctx,maxmem=self.maxmem)
 
             if not isinstance(ret, int):
                 break
