@@ -9,9 +9,9 @@ from multiprocessing import Process
 tinyflow_path = "../../pycode/tinyflow/"
 
 class Inceptionv3(Process):
-    def __init__(self, num_step, type, batch_size, gpu_num, path, file_name, need_tosave=None):
+    def __init__(self, num_step, type, batch_size, gpu_num, path, file_name, budget=None):
         super().__init__()
-        self.need_tosave = need_tosave
+        self.budget = budget
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_num)
         self.gpu_num = gpu_num
         self.n_filter = 32  # growth rate
@@ -526,8 +526,8 @@ class Inceptionv3(Process):
         X_val = np.empty(shape=(self.batch_size, 3, 299, 299), dtype=np.float32)
         y_val = np.empty(shape=(self.batch_size, 1000), dtype=np.float32)
         aph = 0.001
-        if self.is_capu == True and self.need_tosave != None:
-            t = self.TrainExecute.TrainExecutor(loss, aph, self.need_tosave)
+        if self.is_capu == True and self.budget != None:
+            t = self.TrainExecute.TrainExecutor(loss, aph, maxmem=self.budget)
         else:
             t = self.TrainExecute.TrainExecutor(loss, aph)
         t.init_Variable(

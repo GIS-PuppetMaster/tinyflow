@@ -11,10 +11,10 @@ tinyflow_path = "../../pycode/tinyflow/"
 
 
 class VGG16(Process):
-    def __init__(self, num_step, type, batch_size, gpu_num, path, file_name, n_class, need_tosave=None):
+    def __init__(self, num_step, type, batch_size, gpu_num, path, file_name, n_class, budget=None):
         super().__init__()
         self.type = type
-        self.need_tosave = need_tosave
+        self.budget = budget
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_num)
         self.gpu_num = gpu_num
         self.dropout_rate = 0.5
@@ -29,7 +29,6 @@ class VGG16(Process):
         self.f3 = open(self.path + 'type' + str(type) + file_name + '_record_3.txt', 'w')
         self.f6 = open(self.path + 'type' + str(type) + file_name + '_record_6.txt', 'w')
         self.f7 = open(self.path + 'type' + str(type) + file_name + '_record_7.txt', 'w')
-
         self.type = type
         if type == 0:
             self.autodiff_name = "autodiff.py"
@@ -165,7 +164,7 @@ class VGG16(Process):
         #     b_val[i] = ndarray.array(b_val[i], ctx)
         aph = 0.001
         if self.is_capu == True:
-            t = self.TrainExecute.TrainExecutor(self.loss, aph)
+            t = self.TrainExecute.TrainExecutor(self.loss, aph, maxmem=self.budget)
         else:
             t = self.TrainExecute.TrainExecutor(self.loss, aph)
         t.init_Variable(self.feed_dict)
@@ -219,6 +218,6 @@ if __name__ == "__main__":
         path = f'./log/test_on_GPU{GPU}/'
         if not os.path.exists(path):
             os.makedirs(path)
-        vgg16 = VGG16(num_step=5000, type=2, batch_size=16, gpu_num=GPU, path=path, file_name=f"", n_class=1000, need_tosave=0)
+        vgg16 = VGG16(num_step=5000, type=2, batch_size=16, gpu_num=GPU, path=path, file_name=f"", n_class=1000, budget=0)
         vgg16.start()
 # #

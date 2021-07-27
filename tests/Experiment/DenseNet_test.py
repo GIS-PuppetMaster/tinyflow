@@ -13,9 +13,9 @@ tinyflow_path = "../../pycode/tinyflow/"
 
 
 class DenseNet121(Process):
-    def __init__(self, num_step, type, batch_size, gpu_num, path, file_name, need_tosave=None):
+    def __init__(self, num_step, type, batch_size, gpu_num, path, file_name, budget=None):
         super().__init__()
-        self.need_tosave = need_tosave
+        self.budget = budget
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_num)
         self.gpu_num = gpu_num
         self.n_filter = 32  # growth rate
@@ -142,8 +142,8 @@ class DenseNet121(Process):
         feed_dict.update(dict_7)
 
         aph = 0.001
-        if self.is_capu == True and self.need_tosave != None:
-            t = self.TrainExecute.TrainExecutor(loss, aph, self.need_tosave)
+        if self.is_capu == True and self.budget != None:
+            t = self.TrainExecute.TrainExecutor(loss, aph, maxmem=self.budget)
         else:
             t = self.TrainExecute.TrainExecutor(loss, aph)
         t.init_Variable(feed_dict)
@@ -156,7 +156,7 @@ class DenseNet121(Process):
             time2 = datetime.datetime.now()
             print("epoch", i + 1, "use", (time2 - time1).total_seconds()
                   , "\tstart", time1, "\tend", time2, file=self.f1)
-            # print("DenseNet num_step", i)
+            print("DenseNet num_step", i)
         start_finish_time = datetime.datetime.now()
         print((start_finish_time-start_time).total_seconds(), file=self.f3)
         hit_count, swap_count = t.get_hit()
