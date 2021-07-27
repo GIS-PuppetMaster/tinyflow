@@ -1,7 +1,11 @@
 """ library to take autodiff and execute a computation graph """
 from __future__ import absolute_import
 
+import os
+
 import numpy as np
+import pynvml
+
 from pycode.tinyflow import ndarray, gpu_op
 import random
 
@@ -111,6 +115,26 @@ def Placeholder(name):
     return placeholder_node
 
 
+def memory_budget_check(fun):
+    def decorator(self, *args, **kwargs):
+        return_val = fun(self, *args, **kwargs)
+        maxmem = kwargs['maxmem']
+        if maxmem>0:
+            pynvml.nvmlInit()
+            handle = pynvml.nvmlDeviceGetHandleByIndex(0)   #GPU0上面跑
+            info_list = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)
+            gpu_memory_used = 0
+            for info_i in info_list:
+                if info_i.pid == os.getpid():  # 如果与需要记录的pid一致
+                    gpu_memory_used += info_i.usedGpuMemory
+            pynvml.nvmlShutdown()  # 最后关闭管理工具
+            if gpu_memory_used > maxmem:
+                del return_val
+                return int(gpu_memory_used - maxmem)
+        return return_val
+    return decorator
+
+
 class Op(object):
     """Op represents operations performed on nodes."""
 
@@ -124,8 +148,9 @@ class Op(object):
         new_node = Node()
         new_node.op = self
         return new_node
-
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         """Given values of input nodes, compute the output value.
 
         Parameters
@@ -180,7 +205,8 @@ class AddOp(Op):
         new_node.name = "+"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 2
 
         if use_numpy:
@@ -230,7 +256,8 @@ class AddByConstOp(Op):
         new_node.name = "+"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 1
         if use_numpy:
             output_val[:] = input_vals[0] + node.const_attr
@@ -254,7 +281,8 @@ class MulOp(Op):
         new_node.name = "*"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 2
         if use_numpy:
             output_val[:] = input_vals[0] * input_vals[1]
@@ -295,7 +323,8 @@ class MulByConstOp(Op):
         new_node.name = "*"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 1
         if use_numpy:
             output_val[:] = input_vals[0] * node.const_attr
@@ -321,7 +350,8 @@ class MatMulOp(Op):
         new_node.name = "MatMul"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
 
         if use_numpy:
             if ((node.matmul_attr_trans_A is False) and
@@ -396,7 +426,8 @@ class PlaceholderOp(Op):
         new_node = Op.__call__(self)
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert False, "placeholder %s values provided by feed_dict" % node.name
 
         return 0
@@ -416,7 +447,8 @@ class ZerosLikeOp(Op):
         new_node.name = "Zeroslike"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 1
         if use_numpy:
             output_val[:] = np.zeros(input_vals[0].shape)
@@ -441,7 +473,8 @@ class OnesLikeOp(Op):
         new_node.name = "Oneslike"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 1
         if use_numpy:
             output_val[:] = np.ones(input_vals[0].shape)
@@ -468,7 +501,8 @@ class ReduceSumAxisZeroOp(Op):
         new_node.name = "ReduceSumAxisZero"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 1
         if use_numpy:
             assert (isinstance(input_vals[0], np.ndarray))
@@ -505,7 +539,8 @@ class BroadcastToOp(Op):
         new_node.type = type
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         gpu_op.broadcast_to(input_vals[0], output_val, node.type, cudaStream)
 
         return 0
@@ -529,7 +564,8 @@ class BroadcastToGradientOp(Op):
         new_node.cudnnlist = [0]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         # gpu_op.broadcast_to_backward(input_vals[0], output_val, node.type)
 
         # tic = time.time()
@@ -567,7 +603,8 @@ class SoftmaxCrossEntropyOp(Op):
         new_node.name = "SoftmaxXEntropy"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 2
         y = input_vals[0]
         y_ = input_vals[1]
@@ -597,7 +634,8 @@ class SoftmaxOp(Op):
         new_node.name = "Softmax"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 1
         if use_numpy:
             output_val[:] = softmax_func(input_vals[0])
@@ -622,7 +660,8 @@ class ReluOp(Op):
         new_node.name = "Relu"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 1
         if use_numpy:
             output_val[:] = np.maximum(input_vals[0], 0)
@@ -646,7 +685,8 @@ class ReluGradientOp(Op):
         new_node.name = "ReluGradient"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 2
         if use_numpy:
             # heaviside function, 0.5 at x=0
@@ -670,7 +710,8 @@ class ExpOp(Op):
         new_node.name = "Exp"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         assert len(input_vals) == 1
 
@@ -692,7 +733,8 @@ class LogOp(Op):
         new_node.name = "Log"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         assert len(input_vals) == 1
 
@@ -714,7 +756,8 @@ class ReverseOp(Op):
         new_node.name = "Reverse"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         assert len(input_vals) == 1
 
@@ -737,7 +780,8 @@ class PowOp(Op):
         new_node.val = val
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         assert len(input_vals) == 1
 
@@ -763,7 +807,8 @@ class Convolution1DForwardOp(Op):
         new_node.cudnnlist = [0]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 2
 
         memorytoSaving = gpu_op.convolution_1d_forward(input_vals[0], input_vals[1], output_val, node.cudnnlist[0],
@@ -791,7 +836,8 @@ class Convolution1DBackwardOp(Op):
         new_node.cudnnlist = cudnnlist
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 3
         assert isinstance(input_vals[0], ndarray.NDArray)
         assert isinstance(input_vals[1], ndarray.NDArray)
@@ -827,7 +873,8 @@ class Convolution2DForwardOp(Op):
         new_node.cudnnlist = [0]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 2
 
         memorytoSaving = gpu_op.convolution_2d_forward(input_vals[0], input_vals[1], output_val, node.cudnnlist[0],
@@ -859,7 +906,8 @@ class Convolution2DBackwardOp(Op):
 
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 3
         assert isinstance(input_vals[0], ndarray.NDArray)
         assert isinstance(input_vals[1], ndarray.NDArray)
@@ -897,7 +945,8 @@ class Convolution3DForwardOp(Op):
         new_node.cudnnlist = [0]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 2
 
         memorytoSaving = gpu_op.convolution_3d_forward(input_vals[0], input_vals[1], output_val, node.cudnnlist[0],
@@ -926,7 +975,8 @@ class Convolution3DBackwardOp(Op):
 
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 3
         assert isinstance(input_vals[0], ndarray.NDArray)
         assert isinstance(input_vals[1], ndarray.NDArray)
@@ -957,7 +1007,8 @@ class FlattenOp(Op):
         new_node.name = "Flatten"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         input_vals[0].copyto(output_val, cudaStream)
         return 0
@@ -981,7 +1032,8 @@ class FlattenGradientOp(Op):
         new_node.name = "FlattenGradient"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         input_vals[1].copyto(output_val, cudaStream)
         return 0
@@ -1003,7 +1055,8 @@ class ActivationForwardOp(Op):
         new_node.cudnnlist = [0]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         gpu_op.activation_forward(input_vals[0], output_val, node.activationMode, node.cudnnlist[0], cudnnHandle, cudaStream)
 
@@ -1026,7 +1079,8 @@ class ActivationBackwardOp(Op):
         new_node.cudnnlist = cudnnlist
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
 
         gpu_op.activation_backward(input_vals[0], output_val, input_vals[2], input_vals[1], node.activationMode,
@@ -1053,7 +1107,8 @@ class Pooling1DForwardOp(Op):
         new_node.cudnnlist = [0]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         assert isinstance(input_vals[0], ndarray.NDArray)
         gpu_op.pooling_1d_forward(input_vals[0], output_val, node.cudnnlist[0], cudnnHandle)
@@ -1078,7 +1133,8 @@ class Pooling1DBackwardOp(Op):
         new_node.cudnnlist = cudnnlist
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
 
         gpu_op.pooling_1d_backward(input_vals[0], input_vals[2], input_vals[1], output_val, node.cudnnlist[0],
@@ -1108,7 +1164,8 @@ class Pooling2DForwardOp(Op):
         new_node.cudnnlist = [0]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         assert isinstance(input_vals[0], ndarray.NDArray)
 
@@ -1135,7 +1192,8 @@ class Pooling2DBackwardOp(Op):
         new_node.cudnnlist = cudnnlist
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         gpu_op.pooling_2d_backward(input_vals[0], input_vals[2], input_vals[1], output_val, node.cudnnlist[0],
                                    cudnnHandle, cudaStream)
@@ -1167,7 +1225,8 @@ class Pooling3DForwardOp(Op):
         new_node.cudnnlist = [0]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         assert isinstance(input_vals[0], ndarray.NDArray)
 
@@ -1193,7 +1252,8 @@ class Pooling3DBackwardOp(Op):
         new_node.cudnnlist = cudnnlist
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         gpu_op.pooling_3d_backward(input_vals[0], input_vals[2], input_vals[1], output_val, node.cudnnlist[0],
                                    cudnnHandle)
@@ -1219,7 +1279,8 @@ class DropoutForwardOp(Op):
         new_node.inputd = [0]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         assert isinstance(input_vals[0], ndarray.NDArray)
         node.seed[0] = random.randint(0, 100)
@@ -1246,7 +1307,8 @@ class DropoutBackwardOp(Op):
         new_node.cudnnlist = cudnnlist
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         gpu_op.dropout_backward(input_vals[0], output_val, node.reserveSpace_p[0], node.cudnnlist[0], cudnnHandle, cudaStream)
         return 0
@@ -1271,7 +1333,8 @@ class FullyDropoutForwardOp(Op):
         new_node.inputd = [0]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         assert isinstance(input_vals[0], ndarray.NDArray)
         node.seed[0] = random.randint(0, 100)
@@ -1303,7 +1366,8 @@ class FullyDropoutBackwardOp(Op):
         new_node.cudnnlist = cudnnlist
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
 
         gpu_op.dropout_backward(input_vals[0], output_val, node.reserveSpace_p[0], node.cudnnlist[0], cudnnHandle, cudaStream)
@@ -1326,7 +1390,8 @@ class FullyActivationForwardOp(Op):
         new_node.cudnnlist = [0]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         # print("fullyactivation_start")
         assert use_numpy == False
 
@@ -1354,7 +1419,8 @@ class FullyActivationBackwardOp(Op):
         new_node.cudnnlist = cudnnlist
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         # print("FullyActivationBackwardOp_start")
         assert use_numpy == False
 
@@ -1381,7 +1447,8 @@ class ReduceSumOp(Op):
         new_node.cudnnlist = [0]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         # gpu_op.broadcast_to_backward(input_vals[0], output_val, node.type)
 
         # tic = time.time()
@@ -1412,7 +1479,8 @@ class ReduceSumBackwardOp(Op):
         new_node.inputshape = inputshape
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         assert len(input_vals) == 1
         gpu_op.reduce_sum_backward(input_vals[0], output_val, node.axis)
@@ -1437,7 +1505,8 @@ class ReduceMeanOp(Op):
         new_node.meanfloat = [1.]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         # gpu_op.broadcast_to_backward(input_vals[0], output_val, node.type)
 
         # tic = time.time()
@@ -1470,7 +1539,8 @@ class ReduceMeanBackwardOp(Op):
         new_node.inputshape = inputshape
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         assert len(input_vals) == 1
         gpu_op.reduce_sum_backward(input_vals[0], output_val, node.axis)
@@ -1530,7 +1600,8 @@ class L1lossOp(Op):
         new_node.name = "L1loss"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 2
         y = input_vals[0]
         y_ = input_vals[1]
@@ -1555,7 +1626,8 @@ class L1lossgradientOp(Op):
         new_node.name = "L1lossgradient"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         gpu_op.l1loss_gradient(input_vals[0], input_vals[1], input_vals[2], output_val)
 
     def gradient(self, node, output_grad):
@@ -1573,7 +1645,8 @@ class L2lossOp(Op):
         new_node.inputshape = [0]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 2
         y = input_vals[0]
         y_ = input_vals[1]
@@ -1598,7 +1671,8 @@ class L2lossgradientOp(Op):
         new_node.name = "L2lossgradient"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         gpu_op.l2loss_gradient(input_vals[0], input_vals[1], input_vals[2], output_val)
 
     def gradient(self, node, output_grad):
@@ -1615,7 +1689,8 @@ class L1regularOp(Op):
         new_node.name = "L1regular"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 1
         y = input_vals[0]
         if use_numpy:
@@ -1638,7 +1713,8 @@ class L1regulargradientOp(Op):
         new_node.name = "L1regulargradient"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         gpu_op.l1regular_gradient(input_vals[0], input_vals[1], output_val)
 
     def gradient(self, node, output_grad):
@@ -1656,7 +1732,8 @@ class L2regularOp(Op):
         new_node.inputshape = [0]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 1
         y = input_vals[0]
         if use_numpy:
@@ -1679,7 +1756,8 @@ class L2regulargradientOp(Op):
         new_node.name = "L2regulargradient"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         gpu_op.l2regular_gradient(input_vals[0], input_vals[1], output_val)
 
     def gradient(self, node, output_grad):
@@ -1701,7 +1779,8 @@ class BNForwardOp(Op):
         new_node.cudnnlist = [0]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         assert isinstance(input_vals[0], ndarray.NDArray)
 
@@ -1731,7 +1810,8 @@ class BNBackwardOp(Op):
         new_node.cudnnlist = cudnnlist
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
 
         memorytoSaving = gpu_op.bn_backward(input_vals[0], input_vals[1], output_val, node.batchNormMode,
@@ -1758,7 +1838,8 @@ class FullyBNForwardOp(Op):
         new_node.cudnnlist = [0]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         assert isinstance(input_vals[0], ndarray.NDArray)
 
@@ -1788,7 +1869,8 @@ class FullyBNBackwardOp(Op):
         new_node.cudnnlist = cudnnlist
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         input = input_vals[0]
         # inputs = input.reshape((input.shape[0], 1, input.shape[1]))
@@ -1810,7 +1892,8 @@ class ConcatForwardOp(Op):
         new_node.name = "ConcatForward"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         assert isinstance(input_vals[0], ndarray.NDArray)
         assert isinstance(input_vals[1], ndarray.NDArray)
@@ -1836,7 +1919,8 @@ class ConcatBackwardOp(Op):
         new_node.type = type
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert len(input_vals) == 3
         assert isinstance(input_vals[0], ndarray.NDArray)
         assert isinstance(input_vals[1], ndarray.NDArray)
@@ -1864,7 +1948,8 @@ class SqueezeOp(Op):
         new_node.name = "Squeeze"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         input_vals[0].copyto(output_val, cudaStream)
         return 0
@@ -1886,7 +1971,8 @@ class SqueezeGradientOp(Op):
         new_node.name = "SqueezeGradient"
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         input_vals[1].copyto(output_val, cudaStream)
         return 0
@@ -1906,7 +1992,8 @@ class SgdOp(Op):
         new_node.learning_rate = learning_rate
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
 
         gpu_op.sgd_update(input_vals[0], input_vals[1], node.learning_rate, cudaStream)
@@ -1933,7 +2020,8 @@ class AdamOp(Op):
         new_node.learning_rate = learning_rate
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
 
         gpu_op.adam_mv(input_vals[1], input_vals[2], input_vals[3], node.b1, node.b2, cudaStream)
@@ -1958,7 +2046,8 @@ class CrossOp(Op):
         new_node.meanfloat = [1.]
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         gpu_op.cross(input_vals[0], input_vals[1], output_val, node.meanfloat[0], cudaStream)
 
@@ -1983,7 +2072,8 @@ class CrossBackwardOp(Op):
         new_node.meanfloat = meanfloat
         return new_node
 
-    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
+    @memory_budget_check
+    def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False, **kwargs):
         assert use_numpy == False
         gpu_op.cross_backward(input_vals[0], input_vals[1], input_vals[2], output_val, node.meanfloat[0], cudaStream)
 

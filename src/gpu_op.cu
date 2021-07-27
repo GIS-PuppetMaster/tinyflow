@@ -3612,7 +3612,7 @@ int DLGpuDropoutForward(const DLArrayHandle input,
         seed);
      if(err != CUDNN_STATUS_SUCCESS){\
          //printf("出错了");
-        *memorytoSaving = 100*pow(2,20);
+        *memorytoSaving = 10*pow(2,20);
 
           cudaFree(states);
           cudaFree(*reserveSpace_p);
