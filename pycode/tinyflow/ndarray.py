@@ -241,7 +241,7 @@ def array(arr, ctx=cpu(0),maxmem=-1):
                 gpu_memory_used += info_i.usedGpuMemory
         pynvml.nvmlShutdown()  # 最后关闭管理工具
         if gpu_memory_used > maxmem:
-            return gpu_memory_used - maxmem
+            return int(gpu_memory_used - maxmem)
 
 
 
@@ -280,7 +280,7 @@ def empty(shape, ctx=cpu(0),maxmem=-1):
                 gpu_memory_used += info_i.usedGpuMemory
         pynvml.nvmlShutdown()  # 最后关闭管理工具
         if gpu_memory_used > maxmem:
-            return gpu_memory_used - maxmem
+            return int(gpu_memory_used - maxmem)
 
     shape = c_array(ctypes.c_int64, shape)
     ndim = ctypes.c_int(len(shape))
