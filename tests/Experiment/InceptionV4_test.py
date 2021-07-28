@@ -342,6 +342,7 @@ class Inceptionv4(Process):
 
         aph = 0.001
         if self.is_capu == True and self.budget != None:
+            self.ad.setmaxmem(self.budget)
             t = self.TrainExecute.TrainExecutor(loss, aph, maxmem=self.budget)
         else:
             t = self.TrainExecute.TrainExecutor(loss, aph)
