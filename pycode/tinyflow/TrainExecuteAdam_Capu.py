@@ -423,8 +423,8 @@ class TrainExecutor(object):
                         self.tensor_evict(input_node)
                     elif prior_policy == 3:
                         self.tensor_free(input_node)
-                    elif input_node.isw == 0 and (self.capu.tensor_access_list[self.access_index - 1][1] == input_node.access_count) and input_node.array_status==1:
-                        self.tensor_free(input_node)
+                    # elif input_node.isw == 0 and (self.capu.tensor_access_list[self.access_index - 1][1] == input_node.access_count) and input_node.array_status==1:
+                    #     self.tensor_free(input_node)
 
                 if node.issgd == 0:
                     ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem,nowmem=node.memory)

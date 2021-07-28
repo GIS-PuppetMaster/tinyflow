@@ -90,7 +90,7 @@ def Experiment1():
                 batch_size = 2
                 net_name_ = net_name + f' x{i}'
             print("batch_size", batch_size)
-            path = f'./log/{net_name_}_test/'
+            path = f'./log/{net_name_}/'
             print(path)
             if not os.path.exists(path):
                 os.makedirs(path)
