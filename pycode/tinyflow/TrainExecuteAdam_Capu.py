@@ -11,8 +11,10 @@ import pynvml
 index_to_cpu_map = {}
 index_to_cpu_flag = {}
 index_to_gpu_map = {}
+topo_order=[]
 swap_in_id=0
 swap_in_flag=True
+maxmem=0
 class MemoryManager(threading.Thread):
     def __init__(self, will_do_queue: queue.Queue, have_done_queue: queue.Queue):
         threading.Thread.__init__(self)
@@ -34,6 +36,8 @@ class MemoryManager(threading.Thread):
             global index_to_gpu_map
             global swap_in_flag
             global swap_in_id
+            global maxmem
+            global topo_order
 
 
             if move_to_gpu == 0:
@@ -50,7 +54,7 @@ class MemoryManager(threading.Thread):
                 swap_in_id = node_index
                 node_ndarray = index_to_cpu_map[node_index]
                 # time1 = datetime.datetime.now()
-                node_ndarray_new = ndarray.empty(node_ndarray.shape, self.gpu_ctx)
+                node_ndarray_new = ndarray.empty(node_ndarray.shape, self.gpu_ctx,maxmem=maxmem,nowmem=topo_order[node_index].memory)
                 # time2 = datetime.datetime.now()
                 if isinstance(node_ndarray_new,int):
                     swap_in_flag=False
@@ -168,6 +172,9 @@ class TrainExecutor(object):
         global index_to_cpu_flag
         global swap_in_flag
         global swap_in_id
+        global topo_order
+        global maxmem
+
         if self.isfirstrun == 0:
             pciin, pciout = gpu_op.testPcie()
             pciin = pciin * 1024
@@ -198,7 +205,8 @@ class TrainExecutor(object):
 
             # 存已经被计算过的node
             node_computed = set()
-
+            maxmem = self.maxmem
+            topo_order = self.topo_order
             # 日志记录
             self.start_finish_time = datetime.datetime.now()
             self.node_order.append("topo_order:")
@@ -216,7 +224,7 @@ class TrainExecutor(object):
                 if node in feed_dict.keys():
                     # 申请空间
 
-                    ret = ndarray.array(feed_dict[node], ctx=self.ctx,maxmem=self.maxmem)
+                    ret = ndarray.array(feed_dict[node], ctx=self.ctx,maxmem=self.maxmem,nowmem=node.memory)
                     if isinstance(ret, int):
                         self.getpeekaccess()
                         need_tomem += ret
@@ -237,7 +245,7 @@ class TrainExecutor(object):
                     while n.array_status==0:
                         if index_to_cpu_flag[n.index]==False:
                             continue
-                        ret = ndarray.empty(self.node_to_shape_map[n], self.ctx,self.maxmem)
+                        ret = ndarray.empty(self.node_to_shape_map[n], self.ctx,self.maxmem,nowmem=n.memory)
                         if isinstance(ret, int):
                             self.getpeekaccess()
                             need_tomem += ret
@@ -253,7 +261,7 @@ class TrainExecutor(object):
                     # 给这个点申请内存
                     # 申请空间
                     t1 = time.time()
-                    ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem)
+                    ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem,nowmem=node.memory)
                     t2 = time.time()
                     if isinstance(ret, int):
                         self.getpeekaccess()
@@ -268,7 +276,6 @@ class TrainExecutor(object):
                     # 是SgdOp,不申请内存
                     index_to_gpu_map[idx] = None
                 node_val = index_to_gpu_map[idx]
-
                 tic = time.time()
                 memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
                 toc = time.time()
@@ -348,7 +355,7 @@ class TrainExecutor(object):
                 # 是inputs
                 if node in feed_dict.keys():
 
-                    ret = ndarray.array(feed_dict[node], ctx=self.ctx,maxmem=self.maxmem)
+                    ret = ndarray.array(feed_dict[node], ctx=self.ctx,maxmem=self.maxmem,nowmem=node.memory)
                     if isinstance(ret, int):
                         ret = self.tensors_evict(ret, node, node, feed_dict[node],flag=False)
                     index_to_gpu_map[idx] = ret
@@ -363,7 +370,7 @@ class TrainExecutor(object):
                         continue
                     else:
                         # 没在GPU中,重新在GPU申请空间
-                        ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem)
+                        ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem,nowmem=node.memory)
                         if isinstance(ret, int):
                             ret = self.tensors_evict(ret, node, node)
                         # 此时ret为ndarray
@@ -381,7 +388,7 @@ class TrainExecutor(object):
                         continue
                     else:
                         # 没在GPU中,重新在GPU申请空间
-                        ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem)
+                        ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem,nowmem=node.memory)
                         if isinstance(ret, int):
                             ret = self.tensors_evict(ret, node, node)
                         # 此时ret为ndarray
@@ -401,7 +408,7 @@ class TrainExecutor(object):
                     prior_policy = self.prior_policy_run(input_node, node)
                     if input_node.array_status == 0:
                         self.arrive_to_cpu(input_node)
-                        ret = ndarray.empty(self.node_to_shape_map[input_node], ctx=self.ctx,maxmem=self.maxmem)
+                        ret = ndarray.empty(self.node_to_shape_map[input_node], ctx=self.ctx,maxmem=self.maxmem,nowmem=input_node.memory)
                         if isinstance(ret, int):
                             ret = self.tensors_evict(ret, input_node, node)
                         # 此时ret为ndarray
@@ -420,7 +427,7 @@ class TrainExecutor(object):
                         self.tensor_free(input_node)
 
                 if node.issgd == 0:
-                    ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem)
+                    ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem,nowmem=node.memory)
                     if isinstance(ret, int):
                         ret = self.tensors_evict(ret, node, node)
                     # 此时ret为ndarray
@@ -513,7 +520,7 @@ class TrainExecutor(object):
         if prior_policy == 2:
             if input_node.array_status == 0 :
                 self.arrive_to_cpu(input_node)
-                ret = ndarray.empty(self.node_to_shape_map[input_node], ctx=self.ctx,maxmem=self.maxmem)
+                ret = ndarray.empty(self.node_to_shape_map[input_node], ctx=self.ctx,maxmem=self.maxmem,nowmem=input_node.memory)
                 if isinstance(ret, int):
                     ret = self.tensors_evict(ret, input_node, node)
                 # 此时ret为ndarray
@@ -558,7 +565,7 @@ class TrainExecutor(object):
 
             if n.array_status == 0:
                self.arrive_to_cpu(n)
-               ret = ndarray.empty(self.node_to_shape_map[n], ctx=self.ctx,maxmem=self.maxmem)
+               ret = ndarray.empty(self.node_to_shape_map[n], ctx=self.ctx,maxmem=self.maxmem,nowmem=n.memory)
                if isinstance(ret, int):
                    ret = self.tensors_evict_rep(ret, n, node,rep_node)
                # 此时ret为ndarray
@@ -572,7 +579,7 @@ class TrainExecutor(object):
             input_vals.append(index_to_gpu_map[n.index])
 
         # 申请重算结果地址
-        ret = ndarray.empty(self.node_to_shape_map[rep_node], ctx=self.ctx,maxmem=self.maxmem)
+        ret = ndarray.empty(self.node_to_shape_map[rep_node], ctx=self.ctx,maxmem=self.maxmem,nowmem=rep_node.memory)
         if isinstance(ret, int):
             ret = self.tensors_evict_rep(ret, rep_node, node, rep_node)
         index_to_gpu_map[rep_node.index] = ret
@@ -632,9 +639,9 @@ class TrainExecutor(object):
         # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
         while True:
             if flag:
-                ret = ndarray.empty(self.node_to_shape_map[n], ctx=self.ctx,maxmem=self.maxmem)
+                ret = ndarray.empty(self.node_to_shape_map[n], ctx=self.ctx,maxmem=self.maxmem,nowmem=n.memory)
             else:
-                ret = ndarray.array(feed, ctx=self.ctx,maxmem=self.maxmem)
+                ret = ndarray.array(feed, ctx=self.ctx,maxmem=self.maxmem,nowmem=n.memory)
 
             if not isinstance(ret, int):
                 break
@@ -659,9 +666,9 @@ class TrainExecutor(object):
         # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
         while True:
             if feed==None:
-                ret = ndarray.empty(self.node_to_shape_map[n], ctx=self.ctx,maxmem=self.maxmem)
+                ret = ndarray.empty(self.node_to_shape_map[n], ctx=self.ctx,maxmem=self.maxmem,nowmem=n.memory)
             else:
-                ret = ndarray.array(feed, ctx=self.ctx,maxmem=self.maxmem)
+                ret = ndarray.array(feed, ctx=self.ctx,maxmem=self.maxmem,nowmem=n.memory)
 
             if not isinstance(ret, int):
                 break
