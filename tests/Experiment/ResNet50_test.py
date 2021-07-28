@@ -199,8 +199,7 @@ class ResNet50(Process):
 
         aph = 0.001
         if self.is_capu == True and self.budget != None:
-            self.ad.setmaxmem(self.budget)
-            t = self.TrainExecute.TrainExecutor(loss, aph, Maxmem=self.budget)
+            t = self.TrainExecute.TrainExecutor(loss, aph, maxmem=self.budget)
         else:
             t = self.TrainExecute.TrainExecutor(loss, aph)
         t.init_Variable(feed_dict)
@@ -227,7 +226,7 @@ class ResNet50(Process):
         self.f7.close()
 
     def run(self):
-        # try:
+        try:
             X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224
             y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
 
@@ -239,5 +238,5 @@ class ResNet50(Process):
             print("ResNet50" + " type" + str(self.type) + " finish")
 
             record.stop()
-        # except Exception as e:
-        #     traceback.print_exc()
+        except Exception as e:
+            traceback.print_exc()

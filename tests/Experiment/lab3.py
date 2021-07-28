@@ -82,6 +82,7 @@ def get_result(log_path, repeat_times, log, need_tosave_list=None):
     res.flush()
     res.close()
 
+
 class GPURecord(threading.Thread):
     def __init__(self, log_path, suffix=""):
         threading.Thread.__init__(self)
@@ -120,26 +121,33 @@ class GPURecord(threading.Thread):
         self.f.close()
 
 
-def generate_job(num_step, net_id, type, batch_size, path, need_tosave, file_name=""):
+def generate_job(num_step, net_id, type, batch_size, path, budget, file_name=""):
     if net_id == 0:
-        vgg16 = VGG16_test.VGG16(num_step=num_step, type=type, batch_size=batch_size, gpu_num=gpu, path=path, file_name=file_name, n_class=1000, need_tosave=need_tosave)
+        vgg16 = VGG16_test.VGG16(num_step=num_step, type=type, batch_size=batch_size, gpu_num=gpu, path=path,
+                                 file_name=file_name, n_class=1000, budget=budget)
         return vgg16
     elif net_id == 1:
-        inceptionv3 = InceptionV3_test.Inceptionv3(num_step=num_step, type=type, batch_size=batch_size, gpu_num=gpu, path=path, file_name=file_name, need_tosave=need_tosave)
+        inceptionv3 = InceptionV3_test.Inceptionv3(num_step=num_step, type=type, batch_size=batch_size, gpu_num=gpu,
+                                                   path=path, file_name=file_name, budget=budget)
         return inceptionv3
     elif net_id == 2:
-        inceptionv4 = InceptionV4_test.Inceptionv4(num_step=num_step, type=type, batch_size=batch_size, gpu_num=gpu, path=path, file_name=file_name, need_tosave=need_tosave)
+        inceptionv4 = InceptionV4_test.Inceptionv4(num_step=num_step, type=type, batch_size=batch_size, gpu_num=gpu,
+                                                   path=path, file_name=file_name, budget=budget)
         return inceptionv4
     elif net_id == 3:
-        resNet = ResNet50_test.ResNet50(num_step=num_step, type=type, batch_size=batch_size, gpu_num=gpu, path=path, file_name=file_name, need_tosave=need_tosave)
+        resNet = ResNet50_test.ResNet50(num_step=num_step, type=type, batch_size=batch_size, gpu_num=gpu, path=path,
+                                        file_name=file_name, budget=budget)
         return resNet
     elif net_id == 4:
-        denseNet = DenseNet_test.DenseNet121(num_step=num_step, type=type, batch_size=batch_size, gpu_num=gpu, path=path, file_name=file_name, need_tosave=need_tosave)
+        denseNet = DenseNet_test.DenseNet121(num_step=num_step, type=type, batch_size=batch_size, gpu_num=gpu,
+                                             path=path, file_name=file_name, budget=budget)
         return denseNet
+
+budget_ratio = 0.20144502280823326
 
 
 def Experiment3():
-    repeat_times = 10
+    repeat_times = 3
     num_step = 50
     batch_size = 2
     file = open('./log/experiment3_log.txt', 'w+')
@@ -164,23 +172,19 @@ def Experiment3():
         # if not os.path.exists(path):
         #     os.makedirs(path)
         # TENSILE中MDW实验的MSR值
-        budget = 0.19244649546818504
+        vanilla_max_memory = 0
         for type in range(3):  # type是调度方式的选择, 0.不调度，1.capuchin 2.vdnn
-            need_tosave = 0
-            # if type == 1:
-            #     bud = vanilla_max_memory * (1 - budget)
-            #     # 总显存=预算+need_tosave(额外占用空间)
-            #     need_tosave = 11019 - bud
-            #     print(f'need_tosave:{need_tosave}')
-            #     need_tosave_list.append(need_tosave)
             job_pool = []
             for i, net_id in enumerate(nets):
-                if i == 0:
-                    nts = need_tosave
+                if type == 1:
+                    # budget_ratio = 1-schedule/vanilla
+                    # schedule = (1-budget_ratio) * vanilla
+                    budget = vanilla_max_memory*(1-budget_ratio)
                 else:
-                    nts = 0
-                job_pool.append(generate_job(num_step=num_step, net_id=net_id, type=type, batch_size=batch_size, path=path,
-                                             file_name=f"_repeat_time={t}_net_order={i}", need_tosave=nts))
+                    budget = 0
+                job_pool.append(
+                    generate_job(num_step=num_step, net_id=net_id, type=type, batch_size=batch_size, path=path,
+                                 file_name=f"_repeat_time={t}_net_order={i}", budget=budget))
             start_time = time.time()
             recorder = GPURecord(log_path)
             recorder.start()
@@ -207,4 +211,3 @@ if __name__ == '__main__':
     # with open(f"{log_path}/log.pkl", "rb") as f:
     #     log = pkl.load(f)
     # get_result(log_path, repeat_times, log)
-

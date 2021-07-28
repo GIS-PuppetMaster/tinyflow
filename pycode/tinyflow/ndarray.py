@@ -231,18 +231,18 @@ def array(arr, ctx=cpu(0),maxmem=-1,nowmem=0):
     ret : NDArray
         The created array
     """
-    if maxmem>0:
-        pynvml.nvmlInit()
-        handle = pynvml.nvmlDeviceGetHandleByIndex(0)   #GPU0上面跑
-        info_list = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)
-        gpu_memory_used = 0
-        for info_i in info_list:
-            if info_i.pid == os.getpid():  # 如果与需要记录的pid一致
-                gpu_memory_used += info_i.usedGpuMemory
-        pynvml.nvmlShutdown()  # 最后关闭管理工具
-        gpu_memory_used+=nowmem
-        if gpu_memory_used > maxmem:
-            return int(gpu_memory_used - maxmem)
+    # if maxmem>0:
+    #     pynvml.nvmlInit()
+    #     handle = pynvml.nvmlDeviceGetHandleByIndex(0)   #GPU0上面跑
+    #     info_list = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)
+    #     gpu_memory_used = 0
+    #     for info_i in info_list:
+    #         if info_i.pid == os.getpid():  # 如果与需要记录的pid一致
+    #             gpu_memory_used += info_i.usedGpuMemory
+    #     pynvml.nvmlShutdown()  # 最后关闭管理工具
+    #     gpu_memory_used+=nowmem
+    #     if gpu_memory_used > maxmem:
+    #         return int(gpu_memory_used - maxmem)
 
 
 
