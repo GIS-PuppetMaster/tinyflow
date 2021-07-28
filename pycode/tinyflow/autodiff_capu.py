@@ -4,7 +4,9 @@ from __future__ import absolute_import
 import numpy as np
 from pycode.tinyflow import ndarray, gpu_op
 import random
-
+import pynvml
+import os
+mymaxmem=0
 index_to_cpu_map = {}
 index_to_cpu_flag = {}
 index_to_gpu_map = {}
@@ -533,8 +535,8 @@ class BroadcastToGradientOp(Op):
         # gpu_op.broadcast_to_backward(input_vals[0], output_val, node.type)
 
         # tic = time.time()
-
-        memorytoSaving = gpu_op.reduce_sum_new(input_vals[0], output_val, node.cudnnlist[0], cudnnHandle, cudaStream)
+        computespace=maxusetocompute()
+        memorytoSaving = gpu_op.reduce_sum_new(input_vals[0], output_val, node.cudnnlist[0], cudnnHandle, cudaStream,computespace)
 
         return memorytoSaving
 
@@ -829,9 +831,9 @@ class Convolution2DForwardOp(Op):
 
     def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
         assert len(input_vals) == 2
-
+        computespace = maxusetocompute()
         memorytoSaving = gpu_op.convolution_2d_forward(input_vals[0], input_vals[1], output_val, node.cudnnlist[0],
-                                                       cudnnHandle, cudaStream)
+                                                       cudnnHandle, cudaStream,computespace)
 
         return memorytoSaving
 
@@ -864,13 +866,13 @@ class Convolution2DBackwardOp(Op):
         assert isinstance(input_vals[0], ndarray.NDArray)
         assert isinstance(input_vals[1], ndarray.NDArray)
         assert isinstance(input_vals[2], ndarray.NDArray)
-
+        computespace = maxusetocompute()
         if node.type == 0:
             memorytoSaving = gpu_op.convolution_backward_data(input_vals[0], input_vals[2], input_vals[1], output_val,
-                                                              node.cudnnlist[0], cudnnHandle, cudaStream)
+                                                              node.cudnnlist[0], cudnnHandle, cudaStream,computespace)
         if node.type == 1:
             memorytoSaving = gpu_op.convolution_backward_filter(input_vals[0], input_vals[2], input_vals[1], output_val,
-                                                                node.cudnnlist[0], cudnnHandle, cudaStream)
+                                                                node.cudnnlist[0], cudnnHandle, cudaStream,computespace)
 
         return memorytoSaving
 
@@ -1222,11 +1224,12 @@ class DropoutForwardOp(Op):
     def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
         assert use_numpy == False
         assert isinstance(input_vals[0], ndarray.NDArray)
+        computespace = maxusetocompute()
         node.seed[0] = random.randint(0, 100)
         node.reserveSpace_p[0], node.cudnnlist[0], memorytoSaving, err = gpu_op.dropout_forward(input_vals[0], output_val,
                                                                                                 node.dataformat,
                                                                                                 node.dropout, node.seed[0],
-                                                                                                node.inputd[0], cudnnHandle, cudaStream)
+                                                                                                node.inputd[0], cudnnHandle, cudaStream,computespace)
         return memorytoSaving
 
     def gradient(self, node, output_grad):
@@ -1385,7 +1388,8 @@ class ReduceSumOp(Op):
         # gpu_op.broadcast_to_backward(input_vals[0], output_val, node.type)
 
         # tic = time.time()
-        memorytoSaving = gpu_op.reduce_sum_new(input_vals[0], output_val, node.cudnnlist[0], cudnnHandle, cudaStream)
+        computespace = maxusetocompute()
+        memorytoSaving = gpu_op.reduce_sum_new(input_vals[0], output_val, node.cudnnlist[0], cudnnHandle, cudaStream,computespace)
 
         return memorytoSaving
 
@@ -1441,8 +1445,8 @@ class ReduceMeanOp(Op):
         # gpu_op.broadcast_to_backward(input_vals[0], output_val, node.type)
 
         # tic = time.time()
-
-        memorytoSaving = gpu_op.reduce_sum_new(input_vals[0], output_val, node.cudnnlist[0], cudnnHandle, cudaStream)
+        computespace = maxusetocompute()
+        memorytoSaving = gpu_op.reduce_sum_new(input_vals[0], output_val, node.cudnnlist[0], cudnnHandle, cudaStream,computespace)
         gpu_op.matrix_elementwise_multiply_by_const(output_val, node.meanfloat[0], output_val, cudaStream)
         return memorytoSaving
 
@@ -1704,9 +1708,9 @@ class BNForwardOp(Op):
     def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
         assert use_numpy == False
         assert isinstance(input_vals[0], ndarray.NDArray)
-
+        computespace = maxusetocompute()
         memorytoSaving = gpu_op.bn_forward(input_vals[0], output_val, node.batchNormMode, node.n, node.Save_p[0],
-                                           node.Save_p[1], node.cudnnlist[0], cudnnHandle, cudaStream)
+                                           node.Save_p[1], node.cudnnlist[0], cudnnHandle, cudaStream,computespace)
         node.n = node.n + 1
 
         return memorytoSaving
@@ -1733,9 +1737,9 @@ class BNBackwardOp(Op):
 
     def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
         assert use_numpy == False
-
+        computespace = maxusetocompute()
         memorytoSaving = gpu_op.bn_backward(input_vals[0], input_vals[1], output_val, node.batchNormMode,
-                                            node.Save_p[0], node.Save_p[1], node.cudnnlist[0], cudnnHandle, cudaStream)
+                                            node.Save_p[0], node.Save_p[1], node.cudnnlist[0], cudnnHandle, cudaStream,computespace)
 
         return memorytoSaving
 
@@ -1761,9 +1765,9 @@ class FullyBNForwardOp(Op):
     def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
         assert use_numpy == False
         assert isinstance(input_vals[0], ndarray.NDArray)
-
+        computespace = maxusetocompute()
         memorytoSaving = gpu_op.bn_forward(input_vals[0], output_val, node.batchNormMode, node.n, node.Save_p[0],
-                                           node.Save_p[1], node.cudnnlist[0], cudnnHandle, cudaStream)
+                                           node.Save_p[1], node.cudnnlist[0], cudnnHandle, cudaStream,computespace)
 
         node.n = node.n + 1
         return memorytoSaving
@@ -1792,8 +1796,9 @@ class FullyBNBackwardOp(Op):
         assert use_numpy == False
         input = input_vals[0]
         # inputs = input.reshape((input.shape[0], 1, input.shape[1]))
+        computespace = maxusetocompute()
         memorytoSaving = gpu_op.bn_backward(input, input_vals[1], output_val, node.batchNormMode, node.Save_p[0],
-                                            node.Save_p[1], node.cudnnlist[0], cudnnHandle, cudaStream)
+                                            node.Save_p[1], node.cudnnlist[0], cudnnHandle, cudaStream,computespace)
         return memorytoSaving
 
     def gradient(self, node, output_grad):
@@ -2700,3 +2705,22 @@ def broadcast_rule(shape_a, shape_b):
                or (longer_shape[i] == 1)
         output_shape[i] = max(shorter_shape[i], longer_shape[i])
     return tuple(output_shape)
+def setmaxmem(maxmem):
+    global mymaxmem
+    mymaxmem=maxmem*1024*1024
+def pmax():
+    print("print",mymaxmem)
+def maxusetocompute():
+    global mymaxmem
+    pynvml.nvmlInit()
+    handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+    info_list = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)
+    gpu_memory_used = 0
+    for info_i in info_list:
+        if info_i.pid == os.getpid():  # 如果与需要记录的pid一致
+            gpu_memory_used += info_i.usedGpuMemory
+    pynvml.nvmlShutdown()  # 最后关闭管理工具
+    if (int(mymaxmem-gpu_memory_used))>0:
+        return int(mymaxmem-gpu_memory_used)
+    else:
+        return 0

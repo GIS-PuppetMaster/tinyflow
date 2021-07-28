@@ -12,9 +12,9 @@ tinyflow_path = "../../pycode/tinyflow/"
 
 
 class ResNet50(Process):
-    def __init__(self, num_step, type, batch_size, gpu_num, path, file_name, need_tosave=None):
+    def __init__(self, num_step, type, batch_size, gpu_num, path, file_name, budget=None):
         super().__init__()
-        self.need_tosave = need_tosave
+        self.budget = budget
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_num)
         self.gpu_num = gpu_num
         self.dropout_rate = 0.5
@@ -198,20 +198,20 @@ class ResNet50(Process):
         feed_dict.update(dict5_2)
 
         aph = 0.001
-        if self.is_capu == True and self.need_tosave != None:
-            t = self.TrainExecute.TrainExecutor(loss, aph, self.need_tosave)
+        if self.is_capu == True and self.budget != None:
+            self.ad.setmaxmem(self.budget)
+            t = self.TrainExecute.TrainExecutor(loss, aph, Maxmem=self.budget)
         else:
             t = self.TrainExecute.TrainExecutor(loss, aph)
         t.init_Variable(feed_dict)
         start_time = datetime.datetime.now()
         for i in range(num_step):
-            # print("ResNet num_step", i)
             time1 = datetime.datetime.now()
             t.run({X: X_val, y_: y_val})
             time2 = datetime.datetime.now()
             print("epoch", i + 1, "use", (time2 - time1).total_seconds()
                   , "\tstart", time1, "\tend", time2, file=self.f1)
-
+            print("ResNet num_step", i)
         start_finish_time = datetime.datetime.now()
         print((start_finish_time-start_time).total_seconds(), file=self.f3)
         hit_count, swap_count = t.get_hit()
@@ -227,7 +227,7 @@ class ResNet50(Process):
         self.f7.close()
 
     def run(self):
-        try:
+        # try:
             X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224
             y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
 
@@ -239,5 +239,5 @@ class ResNet50(Process):
             print("ResNet50" + " type" + str(self.type) + " finish")
 
             record.stop()
-        except Exception as e:
-            traceback.print_exc()
+        # except Exception as e:
+        #     traceback.print_exc()

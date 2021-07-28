@@ -205,7 +205,6 @@ class TrainExecutor(object):
 
             # 存已经被计算过的node
             node_computed = set()
-            maxmem = self.maxmem
             topo_order = self.topo_order
             # 日志记录
             self.start_finish_time = datetime.datetime.now()
@@ -296,7 +295,6 @@ class TrainExecutor(object):
                                 break
                     # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
                     while True:
-                        print(node)
                         tic = time.time()
                         memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle,self.cublasHandle, self.cudaStream)
                         toc = time.time()
@@ -348,6 +346,7 @@ class TrainExecutor(object):
         else:
             node_computed = set()
             for idx in range(len(self.topo_order)):
+
                 node = self.topo_order[idx]
                  # 已经被计算过了
                 if node in node_computed:
@@ -423,8 +422,7 @@ class TrainExecutor(object):
                         self.tensor_evict(input_node)
                     elif prior_policy == 3:
                         self.tensor_free(input_node)
-                    elif input_node.isw == 0 and (self.capu.tensor_access_list[self.access_index - 1][1] == input_node.access_count) and input_node.array_status==1:
-                        self.tensor_free(input_node)
+
 
                 if node.issgd == 0:
                     ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem,nowmem=node.memory)

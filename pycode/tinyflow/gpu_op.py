@@ -121,12 +121,16 @@ def reduce_sum_get_real_shape(input_shapes, output_shapes, dataformat):
 
 
 
-def reduce_sum_new(in_arr, out_arr, cudnnlist, cudnnHandle, cudaStream):
+def reduce_sum_new(in_arr, out_arr, cudnnlist, cudnnHandle, cudaStream,computespace=None):
 
 
     memorytoSaving = ctypes.c_int(0)
     memorytoSaving = ctypes.pointer(memorytoSaving)
-    _LIB.DLGpuReduceSum(in_arr.handle,out_arr.handle,cudnnlist, cudnnHandle, memorytoSaving, cudaStream)
+    if computespace!=None:
+        computespace=ctypes.c_int(computespace)
+    else:
+        computespace=ctypes.c_int(-1)
+    _LIB.DLGpuReduceSum(in_arr.handle,out_arr.handle,cudnnlist, cudnnHandle, memorytoSaving, cudaStream,computespace)
     memorytoSaving = _LIB.getInt(memorytoSaving)
     return memorytoSaving
 
@@ -288,14 +292,17 @@ def convolution_1d_forward(in_arr, in_filter, out_arr, cudnnlist, cudnnHandle):
 
 
 
-def convolution_2d_forward(in_arr, in_filter, out_arr,cudnnlist, cudnnHandle, cudaStream):
+def convolution_2d_forward(in_arr, in_filter, out_arr,cudnnlist, cudnnHandle, cudaStream,computespace=None):
     assert isinstance(in_arr, _nd.NDArray)
     assert isinstance(in_filter, _nd.NDArray)
     assert isinstance(out_arr, _nd.NDArray)
-
+    if computespace!=None:
+        computespace=ctypes.c_int(computespace)
+    else:
+        computespace=ctypes.c_int(-1)
     memorytoSaving = ctypes.c_int(0)
     memorytoSaving = ctypes.pointer(memorytoSaving)
-    _LIB.DLGpuConvolution2DForward(in_arr.handle, in_filter.handle, out_arr.handle, cudnnlist, cudnnHandle, memorytoSaving, cudaStream)
+    _LIB.DLGpuConvolution2DForward(in_arr.handle, in_filter.handle, out_arr.handle, cudnnlist, cudnnHandle, memorytoSaving, cudaStream,computespace)
     memorytoSaving = _LIB.getInt(memorytoSaving)
     return memorytoSaving
 
@@ -312,29 +319,35 @@ def convolution_3d_forward(in_arr, in_filter, out_arr,nodelist, cudnnHandle):
     memorytoSaving = _LIB.getInt(memorytoSaving)
     return memorytoSaving
 
-def convolution_backward_filter(in_arr,dout_arr,in_filter,in_dfilter, cudnnlist, cudnnHandle, cudaStream):
+def convolution_backward_filter(in_arr,dout_arr,in_filter,in_dfilter, cudnnlist, cudnnHandle, cudaStream,computespace=None):
     assert isinstance(in_arr, _nd.NDArray)
     assert isinstance(in_filter, _nd.NDArray)
     assert isinstance(dout_arr, _nd.NDArray)
     assert isinstance(in_dfilter, _nd.NDArray)
-
+    if computespace!=None:
+        computespace=ctypes.c_int(computespace)
+    else:
+        computespace=ctypes.c_int(-1)
     memorytoSaving = ctypes.c_int(0)
     memorytoSaving = ctypes.pointer(memorytoSaving)
     _LIB.DLGpuConvolutionBackwardFilter(in_arr.handle, dout_arr.handle, in_filter.handle, in_dfilter.handle, cudnnlist,
-                                        cudnnHandle,memorytoSaving, cudaStream)
+                                        cudnnHandle,memorytoSaving, cudaStream,computespace)
     memorytoSaving = _LIB.getInt(memorytoSaving)
     return memorytoSaving
 
-def convolution_backward_data(in_arr,dout_arr,in_filter,dinput_arr, cudnnlist, cudnnHandle, cudaStream):
+def convolution_backward_data(in_arr,dout_arr,in_filter,dinput_arr, cudnnlist, cudnnHandle, cudaStream,computespace=None):
     assert isinstance(in_arr, _nd.NDArray)
     assert isinstance(in_filter, _nd.NDArray)
     assert isinstance(dout_arr, _nd.NDArray)
     assert isinstance(dinput_arr, _nd.NDArray)
-
+    if computespace!=None:
+        computespace=ctypes.c_int(computespace)
+    else:
+        computespace=ctypes.c_int(-1)
     memorytoSaving = ctypes.c_int(0)
     memorytoSaving = ctypes.pointer(memorytoSaving)
     _LIB.DLGpuConvolutionBackwardData(in_arr.handle, dout_arr.handle, in_filter.handle, dinput_arr.handle, cudnnlist,
-                                      cudnnHandle, memorytoSaving, cudaStream)
+                                      cudnnHandle, memorytoSaving, cudaStream,computespace)
     memorytoSaving = _LIB.getInt(memorytoSaving)
     return memorytoSaving
 
@@ -654,7 +667,7 @@ def pooling_3d_forward_get_out_shape(input_shapes,dataformat,poolingMode,padding
     return (c_output_shapes[0],c_output_shapes[1],c_output_shapes[2],c_output_shapes[3],c_output_shapes[4]),cudnnlist
 
 
-def dropout_forward(input,output,dataformat,dropout,seed,inputd, cudnnHandle, cudaStream):
+def dropout_forward(input,output,dataformat,dropout,seed,inputd, cudnnHandle, cudaStream,computespace=None):
     assert isinstance(input, _nd.NDArray)
     assert isinstance(output, _nd.NDArray)
     if dataformat=="NCHW":
@@ -664,6 +677,11 @@ def dropout_forward(input,output,dataformat,dropout,seed,inputd, cudnnHandle, cu
     else:
         assert 0
     assert seed>=0
+
+    if computespace!=None:
+        computespace=ctypes.c_int(computespace)
+    else:
+        computespace=ctypes.c_int(-1)
     dropout = ctypes.c_float(dropout)
     seed = ctypes.c_int(seed)
     reserveSpace_p = ctypes.c_int(0)
@@ -677,7 +695,7 @@ def dropout_forward(input,output,dataformat,dropout,seed,inputd, cudnnHandle, cu
     memorytoSaving = ctypes.c_int(0)
     memorytoSaving = ctypes.pointer(memorytoSaving)
     err=_LIB.DLGpuDropoutForward(input.handle, output.handle, dataformat, dropout, seed, reserveSpace_p, inputd, cudnnlist,
-                             cudnnHandle,memorytoSaving, cudaStream)
+                             cudnnHandle,memorytoSaving, cudaStream,computespace)
     memorytoSaving = _LIB.getInt(memorytoSaving)
 
 
@@ -797,7 +815,7 @@ def bn_get_cudnnlist(input_shapes,dataformat,batchNormMode):
 
 
 
-def bn_forward(input,output,batchNormMode,n,mean_p,var_p,cudnnlist, cudnnHandle, cudaStream):
+def bn_forward(input,output,batchNormMode,n,mean_p,var_p,cudnnlist, cudnnHandle, cudaStream,computespace=None):
     assert isinstance(input, _nd.NDArray)
     assert isinstance(output, _nd.NDArray)
 
@@ -809,11 +827,14 @@ def bn_forward(input,output,batchNormMode,n,mean_p,var_p,cudnnlist, cudnnHandle,
         assert 0
 
 
-
+    if computespace!=None:
+        computespace=ctypes.c_int(computespace)
+    else:
+        computespace=ctypes.c_int(-1)
     memorytoSaving = ctypes.c_int(0)
     memorytoSaving = ctypes.pointer(memorytoSaving)
     _LIB.DLGpuBatchNormalizationForward(input.handle, output.handle, batchNormMode, n, mean_p, var_p, cudnnlist,
-                                        cudnnHandle, memorytoSaving, cudaStream)
+                                        cudnnHandle, memorytoSaving, cudaStream,computespace)
     memorytoSaving = _LIB.getInt(memorytoSaving)
     return memorytoSaving
 
@@ -824,7 +845,7 @@ def bn_forward(input,output,batchNormMode,n,mean_p,var_p,cudnnlist, cudnnHandle,
 
 
 
-def bn_backward(input,doutput,dinput,batchNormMode,mean_p,var_p,cudnnlist, cudnnHandle, cudaStream):
+def bn_backward(input,doutput,dinput,batchNormMode,mean_p,var_p,cudnnlist, cudnnHandle, cudaStream,computespace=None):
     assert isinstance(input, _nd.NDArray)
     assert isinstance(dinput, _nd.NDArray)
     assert isinstance(doutput, _nd.NDArray)
@@ -834,11 +855,14 @@ def bn_backward(input,doutput,dinput,batchNormMode,mean_p,var_p,cudnnlist, cudnn
         batchNormMode=1
     else:
         assert 0
-
+    if computespace!=None:
+        computespace=ctypes.c_int(computespace)
+    else:
+        computespace=ctypes.c_int(-1)
     memorytoSaving = ctypes.c_int(0)
     memorytoSaving = ctypes.pointer(memorytoSaving)
     _LIB.DLGpuBatchNormalizationBackward(input.handle, doutput.handle, dinput.handle, batchNormMode, mean_p, var_p,
-                                         cudnnlist, cudnnHandle, memorytoSaving, cudaStream)
+                                         cudnnlist, cudnnHandle, memorytoSaving, cudaStream,computespace)
     memorytoSaving = _LIB.getInt(memorytoSaving)
     return memorytoSaving
 
