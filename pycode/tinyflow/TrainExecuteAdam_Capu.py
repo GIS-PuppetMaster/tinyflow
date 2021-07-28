@@ -71,8 +71,8 @@ class MemoryManager(threading.Thread):
 class TrainExecutor(object):
     """Executor computes values for given set of nodes in computation graph."""
 
-    def __init__(self, targetloss, learning_rate=0.001, Maxmem=None, ctx=ndarray.gpu(0)):
-        self.maxmem=Maxmem*1024*1024
+    def __init__(self, targetloss, learning_rate=0.001, maxmem=None, ctx=ndarray.gpu(0)):
+        self.maxmem=maxmem*1024*1024
         self.b1 = 0.9
         self.b2 = 0.999
         self.e = 0.00000001

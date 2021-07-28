@@ -78,13 +78,11 @@ def create_extra_matrix(need_tosave, pipe1, pipe2):
 
 
 def Experiment1():
-    for net_id in range(3,5):
+    for net_id in range(5):
         repeat_times = 3
         print("Experiment1 start")
         net_name = net_names[net_id]
         for i, num_net in enumerate([1, 1, 2, 3]):
-            if i==0:
-                continue
             if i == 0:
                 batch_size = 16
                 net_name_ = net_name
@@ -118,17 +116,7 @@ def Experiment1():
                         job.start()
                     for job in job_pool:
                         job.join()
-                    # if type == 1:
-                    #     pipe2.put(True)
-                    #     p.join()
-                    #     pipe1.close()
-                    #     pipe2.close()
-                    # if type == 0:
-                    #     vanilla_max_memory = get_vanilla_max_memory(path, repeat_times=repeat_times)
-            # try:
             get_result(path, repeat_times=repeat_times, need_tosave=need_tosave_list)
-            # except Exception as e:
-            #     traceback.print_exc()
             print("Experiment1 finish")
 
 
