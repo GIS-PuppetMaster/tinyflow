@@ -270,7 +270,7 @@ class TrainExecutor(object):
                 node_val = index_to_gpu_map[idx]
 
                 tic = time.time()
-                memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream, maxmem=self.maxmem)
+                memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
                 toc = time.time()
 
 
@@ -291,7 +291,7 @@ class TrainExecutor(object):
                     while True:
                         print(node)
                         tic = time.time()
-                        memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle,self.cublasHandle, self.cudaStream, maxmem=self.maxmem)
+                        memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle,self.cublasHandle, self.cudaStream)
                         toc = time.time()
                         if memorytoSaving == 0:
                             break
@@ -428,7 +428,7 @@ class TrainExecutor(object):
                     index_to_gpu_map[idx] = ret
                     node.array_status = 1
                 node_val = index_to_gpu_map[idx]
-                memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream, maxmem=self.maxmem)
+                memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
                 if memorytoSaving != 0:
                     # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
                     count = 0
@@ -443,7 +443,7 @@ class TrainExecutor(object):
                                 break
                     while True:
                         memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle,
-                                                         self.cublasHandle, self.cudaStream, maxmem=self.maxmem)
+                                                         self.cublasHandle, self.cudaStream)
                         if memorytoSaving == 0:
                             break
                         if count < len(self.topo_order) - 1:
@@ -580,7 +580,7 @@ class TrainExecutor(object):
         index_to_cpu_flag[rep_node.index] = False
 
         node_val = index_to_gpu_map[rep_node.index]
-        memorytoSaving = rep_node.op.compute(rep_node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream, maxmem=self.maxmem)
+        memorytoSaving = rep_node.op.compute(rep_node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
         if memorytoSaving != 0:
             # 这里被动模式
             count = 0
@@ -595,7 +595,7 @@ class TrainExecutor(object):
                         break
             while True:
                 memorytoSaving = rep_node.op.compute(rep_node, input_vals, node_val, self.cudnnHandle,
-                                                     self.cublasHandle, self.cudaStream, maxmem=self.maxmem)
+                                                     self.cublasHandle, self.cudaStream)
 
                 if memorytoSaving == 0:
                     break

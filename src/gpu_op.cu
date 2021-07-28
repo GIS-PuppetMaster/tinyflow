@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cublas_v2.h>
+#include <cuda.h>
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <algorithm>
@@ -327,7 +328,20 @@ __global__ void matrix_pow_kernel(float* inputArr, float val, float* outputArr, 
     }
 }
 
-
+int SetCudaMemoryLimit(size_t size){
+    //CUcontext* pctx;
+    //unsigned int flag=1;
+    //CUdevice device = (CUdevice) 0;
+    int err;
+    cuInit(0);
+    //err=(int)cuCtxCreate(pctx, flag, device);
+    //printf("ctx_code: %d\n", err);
+    //err = (int)cuCtxSetLimit(CU_LIMIT_STACK_SIZE, size);
+    //printf("stack_limit_code: %d\n", err);
+    err = (int) cuCtxSetLimit(CU_LIMIT_MALLOC_HEAP_SIZE, size);
+    printf("heap_limit_code: %d\n", err);
+    return err;
+}
 
 
 int DLGpuArraySet(DLArrayHandle arr, float value, void **cudaStream) {

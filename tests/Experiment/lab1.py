@@ -78,7 +78,7 @@ def create_extra_matrix(need_tosave, pipe1, pipe2):
 
 
 def Experiment1():
-    for net_id in range(3,5):
+    for net_id in range(0,1):
         repeat_times = 3
         print("Experiment1 start")
         net_name = net_names[net_id]

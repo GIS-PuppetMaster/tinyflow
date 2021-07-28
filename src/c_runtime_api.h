@@ -563,7 +563,7 @@ TINYFLOW_EXTERN_C {
 
   int getInt(int *intp);
   int testPcie(int *in,int *out);
-
+  int SetCudaMemoryLimit(size_t size);
 //  int DLGpuSgdUpdate(DLArrayHandle* output,
 //                    const DLArrayHandle* m,
 //                    const int* shape_prefix,

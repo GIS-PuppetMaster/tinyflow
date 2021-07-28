@@ -6,6 +6,7 @@ from multiprocessing import Process
 
 from pycode.tinyflow import ndarray
 from tests.Experiment import record_GPU
+from pycode.tinyflow.gpu_op import SetCudaMemoryLimit
 
 tinyflow_path = "../../pycode/tinyflow/"
 
@@ -156,7 +157,6 @@ class VGG16(Process):
             , b6: b6_val, b7: b7_val, b8: b8_val}
 
     def vgg16(self, num_step, X_val, y_val):
-
         # ctx = ndarray.gpu(0)
         # for i in range(16):
         #     filters_val[i] = ndarray.array(filters_val[i], ctx)
@@ -164,13 +164,12 @@ class VGG16(Process):
         #     b_val[i] = ndarray.array(b_val[i], ctx)
         aph = 0.001
         if self.is_capu == True:
-            t = self.TrainExecute.TrainExecutor(self.loss, aph, maxmem=self.budget)
+            t = self.TrainExecute.TrainExecutor(self.loss, aph, maxmem=0)
         else:
             t = self.TrainExecute.TrainExecutor(self.loss, aph)
         t.init_Variable(self.feed_dict)
-        print('run')
+        # print('run')
         start_time = datetime.datetime.now()
-
         for i in range(num_step):
             # print(f"VGG16 num_step {i}")
             time1 = datetime.datetime.now()
@@ -196,19 +195,22 @@ class VGG16(Process):
 
     def run(self):
         # try:
-            X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224
-            y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
+        if self.budget>0:
+            print(f'budget:{self.budget}')
+            SetCudaMemoryLimit(self.budget)
+        X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224
+        y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
 
-            record = record_GPU.record("VGG16", self.type, self.gpu_num, self.path, self.file_name)
-            record.start()
+        record = record_GPU.record("VGG16", self.type, self.gpu_num, self.path, self.file_name)
+        record.start()
 
-            print("VGG16" + " type" + str(self.type) + " start")
+        print("VGG16" + " type" + str(self.type) + " start")
 
-            self.vgg16(num_step=self.num_step, X_val=X_val, y_val=y_val)
+        self.vgg16(num_step=self.num_step, X_val=X_val, y_val=y_val)
 
-            print("VGG16" + " type" + str(self.type) + " finish")
+        print("VGG16" + " type" + str(self.type) + " finish")
 
-            record.stop()
+        record.stop()
         # except Exception as e:
         #     traceback.print_exc()
 
