@@ -78,11 +78,13 @@ def create_extra_matrix(need_tosave, pipe1, pipe2):
 
 
 def Experiment1():
-    for net_id in range(0,1):
+    for net_id in range(3,5):
         repeat_times = 3
         print("Experiment1 start")
         net_name = net_names[net_id]
         for i, num_net in enumerate([1, 1, 2, 3]):
+            if i==0:
+                continue
             if i == 0:
                 batch_size = 16
                 net_name_ = net_name

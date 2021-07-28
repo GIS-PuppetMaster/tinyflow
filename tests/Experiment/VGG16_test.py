@@ -164,7 +164,7 @@ class VGG16(Process):
         #     b_val[i] = ndarray.array(b_val[i], ctx)
         aph = 0.001
         if self.is_capu == True:
-            t = self.TrainExecute.TrainExecutor(self.loss, aph, maxmem=0)
+            t = self.TrainExecute.TrainExecutor(self.loss, aph, maxmem=self.budget)
         else:
             t = self.TrainExecute.TrainExecutor(self.loss, aph)
         t.init_Variable(self.feed_dict)
@@ -195,9 +195,9 @@ class VGG16(Process):
 
     def run(self):
         # try:
-        if self.budget>0:
-            print(f'budget:{self.budget}')
-            SetCudaMemoryLimit(self.budget)
+        # if self.budget>0:
+        #     print(f'budget:{self.budget}')
+        #     SetCudaMemoryLimit(self.budget)
         X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224
         y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
 

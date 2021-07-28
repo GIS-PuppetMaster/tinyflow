@@ -218,7 +218,7 @@ class NDArray(object):
 
 
 #用isinstance==int判断是否超内存
-def array(arr, ctx=cpu(0),maxmem=-1):
+def array(arr, ctx=cpu(0),maxmem=-1,nowmem=0):
     """Create an array from source arr.
     Parameters
     ----------
@@ -240,6 +240,7 @@ def array(arr, ctx=cpu(0),maxmem=-1):
     #         if info_i.pid == os.getpid():  # 如果与需要记录的pid一致
     #             gpu_memory_used += info_i.usedGpuMemory
     #     pynvml.nvmlShutdown()  # 最后关闭管理工具
+    #     gpu_memory_used+=nowmem
     #     if gpu_memory_used > maxmem:
     #         return int(gpu_memory_used - maxmem)
 
@@ -256,7 +257,7 @@ def array(arr, ctx=cpu(0),maxmem=-1):
     return ret
 
 #用isinstance==int判断是否超内存
-def empty(shape, ctx=cpu(0),maxmem=-1):
+def empty(shape, ctx=cpu(0),maxmem=-1,nowmem=0):
     """Create an empty array given shape and device
     Parameters
     ----------
@@ -270,17 +271,18 @@ def empty(shape, ctx=cpu(0),maxmem=-1):
         The array dlsys supported.
     申请失败，返回size
     """
-    # if maxmem > 0:
-    #     pynvml.nvmlInit()
-    #     handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-    #     info_list = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)
-    #     gpu_memory_used = 0
-    #     for info_i in info_list:
-    #         if info_i.pid == os.getpid():  # 如果与需要记录的pid一致
-    #             gpu_memory_used += info_i.usedGpuMemory
-    #     pynvml.nvmlShutdown()  # 最后关闭管理工具
-    #     if gpu_memory_used > maxmem:
-    #         return int(gpu_memory_used - maxmem)
+    if maxmem > 0:
+        pynvml.nvmlInit()
+        handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+        info_list = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)
+        gpu_memory_used = 0
+        for info_i in info_list:
+            if info_i.pid == os.getpid():  # 如果与需要记录的pid一致
+                gpu_memory_used += info_i.usedGpuMemory
+        pynvml.nvmlShutdown()  # 最后关闭管理工具
+        gpu_memory_used += nowmem
+        if gpu_memory_used > maxmem:
+            return int(gpu_memory_used - maxmem)
 
     shape = c_array(ctypes.c_int64, shape)
     ndim = ctypes.c_int(len(shape))
