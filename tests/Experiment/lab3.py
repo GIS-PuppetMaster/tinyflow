@@ -158,7 +158,6 @@ def Experiment3():
     f1 = open(f"{log_path}/log.pkl", "wb")
     # res = open(f'{log_path}/res.txt', 'w+')
     need_tosave_list = []
-    vanilla_max_memory = 0
     for t in range(repeat_times):
         print(f'repeat_times:{t}')
         nets = [0, 1, 2, 3, 4]
@@ -177,8 +176,6 @@ def Experiment3():
             job_pool = []
             for i, net_id in enumerate(nets):
                 if type == 1:
-                    # budget_ratio = 1-schedule/vanilla
-                    # schedule = (1-budget_ratio) * vanilla
                     budget = vanilla_max_memory*(1-budget_ratio)
                 else:
                     budget = 0
