@@ -1279,12 +1279,13 @@ class FullyDropoutForwardOp(Op):
         assert isinstance(input_vals[0], ndarray.NDArray)
         node.seed[0] = random.randint(0, 100)
         input = input_vals[0]
+        computespace = maxusetocompute()
         # inputs = input.reshape((input.shape[0], 1, input.shape[1]))
 
         node.reserveSpace_p[0], node.cudnnlist[0], memorytoSaving, err = gpu_op.dropout_forward(input, output_val,
                                                                                                 node.dataformat,
                                                                                                 node.dropout, node.seed[0],
-                                                                                                node.inputd[0], cudnnHandle, cudaStream)
+                                                                                                node.inputd[0], cudnnHandle, cudaStream,computespace)
 
         return memorytoSaving
 
