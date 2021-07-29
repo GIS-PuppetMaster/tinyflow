@@ -59,7 +59,6 @@ class MemoryManager(threading.Thread):
                 if isinstance(node_ndarray_new,int):
                     swap_in_flag=False
                 else:
-
                     node_ndarray.copyto(node_ndarray_new, self.cudaSwapStream)
                     if index_to_gpu_map[node_index] is None:
                         index_to_gpu_map[node_index] = node_ndarray_new
@@ -265,7 +264,29 @@ class TrainExecutor(object):
                     if isinstance(ret, int):
                         self.getpeekaccess()
                         need_tomem += ret
-                        ret=self.tensors_evict(ret,node,node)
+                        count = 0
+                        for i in range(len(self.topo_order)):
+                            dnode = self.topo_order[i]
+                            if self.isevict(dnode, node):
+                                self.tensor_evict(dnode)
+                                ret -= dnode.memory
+                                if (ret < 0):
+                                    self.arrive_to_cpu(dnode)
+                                    count = i
+                                    break
+                        # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
+                        while True:
+                            t1=time.time()
+                            ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx, maxmem=self.maxmem,nowmem=node.memory)
+                            t2=time.time()
+                            if not isinstance(ret, int):
+                                break
+                            if count < len(self.topo_order) - 1:
+                                count += 1
+                            dnode = self.topo_order[count]
+                            if self.isevict(dnode, node):
+                                self.tensor_evict(dnode)
+                                self.arrive_to_cpu(dnode)
                     # # 此时ret为ndarray
                     # # value都存在self.node_to_arr_map
                     index_to_gpu_map[idx] = ret
