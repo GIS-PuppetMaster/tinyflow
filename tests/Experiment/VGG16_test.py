@@ -6,7 +6,6 @@ from multiprocessing import Process
 
 from pycode.tinyflow import ndarray
 from tests.Experiment import record_GPU
-from pycode.tinyflow.gpu_op import SetCudaMemoryLimit
 
 tinyflow_path = "../../pycode/tinyflow/"
 
@@ -164,6 +163,7 @@ class VGG16(Process):
         #     b_val[i] = ndarray.array(b_val[i], ctx)
         aph = 0.001
         if self.is_capu == True:
+            self.ad.setmaxmem(self.budget)
             t = self.TrainExecute.TrainExecutor(self.loss, aph, maxmem=self.budget)
         else:
             t = self.TrainExecute.TrainExecutor(self.loss, aph)
