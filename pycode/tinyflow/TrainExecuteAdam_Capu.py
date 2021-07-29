@@ -107,7 +107,7 @@ class TrainExecutor(object):
         self.isfirstrun = 0
         self.isc = 0
 
-        self.capu = capuchinadam.capuchin(self.topo_order)
+
         self.access_index = 0
         self.will_do_queue = queue.Queue()
         self.have_done_queue = queue.Queue()
@@ -116,7 +116,11 @@ class TrainExecutor(object):
         self.memoryManager.start()
         for i in range(len(self.topo_order)):
             self.topo_order[i].index = i
-        # 日志记录
+            node=self.topo_order[i]
+            if node.name == "FullyDropoutBackward" or node.name == "DropoutBackward":
+                node.isdrop=1
+                    # 日志记录
+        self.capu = capuchinadam.capuchin(self.topo_order)
         self.start_finish_time = 0
         self.hit_count = 0
         self.swap_count = 0
@@ -505,17 +509,6 @@ class TrainExecutor(object):
         policy = self.capu.policy[self.access_index]
         policy_in = self.capu.policy_in[self.access_index]
         # print(input_node,input_node.array_status,policy,index_to_cpu_flag[input_node.index])
-        if policy == 2:
-            swap_id = self.capu.swap[self.access_index]
-            swap_node = self.topo_order[swap_id]
-            if swap_node.array_status == 0:
-                self.arrive_to_cpu(swap_node)
-                self.will_do_queue.put((swap_id, 1))
-                swap_node.array_status = 1
-            else:
-                swap_in_id = swap_id
-                swap_in_flag = True
-            self.reflush_access.append(self.access_index)
         if policy_in == 5:
             if index_to_cpu_flag[input_node.index] != False:
                 while index_to_cpu_flag[input_node.index] != False or swap_in_id != input_node.index:
@@ -530,6 +523,18 @@ class TrainExecutor(object):
                         break
             else:
                 self.reflush_access.pop()
+        if policy == 2:
+            swap_id = self.capu.swap[self.access_index]
+            swap_node = self.topo_order[swap_id]
+            if swap_node.array_status == 0:
+                self.arrive_to_cpu(swap_node)
+                self.will_do_queue.put((swap_id, 1))
+                swap_node.array_status = 1
+            else:
+                swap_in_id = swap_id
+                swap_in_flag = True
+            self.reflush_access.append(self.access_index)
+
         return policy
 
     # 无法在策略中掩藏开销的，进行该操作
@@ -608,13 +613,14 @@ class TrainExecutor(object):
         index_to_cpu_flag[rep_node.index] = False
 
         node_val = index_to_gpu_map[rep_node.index]
+
         memorytoSaving = rep_node.op.compute(rep_node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
         if memorytoSaving != 0:
             # 这里被动模式
             count = 0
             for i in range(len(self.topo_order)):
                 dnode = self.topo_order[i]
-                if self.isevict(dnode, node):
+                if self.isevict(dnode, node) and self.isevict(dnode, rep_node):
                     self.tensor_evict(dnode)
                     memorytoSaving -= dnode.memory
                     if (memorytoSaving < 0):
@@ -631,7 +637,7 @@ class TrainExecutor(object):
                 if count < len(self.topo_order) - 1:
                     count += 1
                 dnode = self.topo_order[count]
-                if self.isevict(dnode, node):
+                if self.isevict(dnode, node) and self.isevict(dnode, rep_node):
                     self.tensor_evict(dnode)
                     self.arrive_to_cpu(dnode)
     def arrive_to_cpu(self, n):

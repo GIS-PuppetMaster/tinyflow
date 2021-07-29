@@ -49,6 +49,7 @@ class Node(object):
         self.ext_time = 0
         # memory/rp_time，单位一致
         self.MSPS = 0
+        self.isdrop=0
 
         # 里面装的node，初始化为inputs的那几个node
         self.srcs = []

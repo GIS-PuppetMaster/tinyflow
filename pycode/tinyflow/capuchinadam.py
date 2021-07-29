@@ -31,7 +31,7 @@ class capuchin:
             reflushtime=0.05*(self.topo_order[swap_node_id].swapintime)
             instart_time=self.tensor_access_list[id][2]-reflushtime
             while True:
-                if self.policy[instart_id] == 0:
+                if self.policy[instart_id] == 0 and self.policy_in[instart_id]==0:
                     instart_id -= 1
                     if (instart_id < 0):
                         instart_id+=1
@@ -39,9 +39,9 @@ class capuchin:
                 else:
                     instart_id+=1
                     break
-                if self.tensor_access_list[instart_id][2] <= instart_time and self.policy[instart_id] == 0:
+                if self.tensor_access_list[instart_id][2] <= instart_time and self.policy[instart_id] == 0 and self.policy_in[instart_id]==0:
                     break
-            if instart_id!=id:
+            if instart_id!=id and self.policy[instart_id] == 0 and self.policy_in[instart_id]==0:
                 self.policy[instart_id]=2
                 self.swap[instart_id]=swap_node_id
                 self.swap[id]=-1
@@ -120,13 +120,13 @@ class capuchin:
             if(in_start<0):
                 return False
             while True:
-                if self.policy[in_start] == 0 :
+                if self.policy[in_start] == 0 and self.policy_in[in_start]==0:
                     in_start = in_start - 1
                     if (in_start < 0):
                         return False
                 else:
                     return False
-                if self.tensor_access_list[in_start+1][2] <=swapinstart_time and self.policy[in_start]==0:
+                if self.tensor_access_list[in_start+1][2] <=swapinstart_time and self.policy[in_start]==0 and self.policy_in[in_start]==0:
                      break
 
             # 布置策略
@@ -136,6 +136,8 @@ class capuchin:
             for i in range(in_start, in_end):
                 if self.swap[i]!=-1 or self.policy[i]!=0:
                     return False
+            if self.policy_in[in_start]!=0:
+                return False
 
 
             self.policy[out_start] = 1
@@ -161,7 +163,7 @@ class capuchin:
             maxmsps_id = -1
             maxmsps_use_id=-1
             for i in self.candidates:
-                if self.topo_order[i[0]].MSPS >maxmsps and self.topo_order[i[0]].isw==0:
+                if self.topo_order[i[0]].MSPS >maxmsps and self.topo_order[i[0]].isw==0 and self.topo_order[i[0]].isdrop!=1:
                     maxmsps = self.topo_order[i[0]].MSPS
                     maxmsps_id = i[0]
                     maxmsps_use_id=i[2]
