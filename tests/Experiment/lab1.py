@@ -84,7 +84,6 @@ def Experiment1():
         print("Experiment1 start")
         net_name = net_names[net_id]
         for i, num_net in enumerate([1, 1, 2, 3]):
-            # v4 x1
             if i == 0:
                 batch_size = 16
                 net_name_ = net_name
@@ -123,17 +122,3 @@ def Experiment1():
 
 if __name__ == "__main__":
     Experiment1()
-    # from line_profiler import LineProfiler
-    # import TrainExecuteAdam_Capu
-    # lp = LineProfiler()
-    # lp.add_function(TrainExecuteAdam_Capu.TrainExecutor.run)
-    # lp_wrapper = lp(Experiment1)
-    # lp_wrapper()
-    # lp.print_stats()
-
-    # from pycode.tinyflow import gpu_op
-    # cudaStream = gpu_op.create_cudaStream()
-    # cudnnHandle = gpu_op.create_cudnnHandle(cudaStream)
-    # cublasHandle = gpu_op.create_cublasHandle(cudaStream)
-    # time.sleep(1000)
-    # get_result('./log/InceptionV3 x1/', repeat_times=3, need_tosave=[7480,9060,9848])
