@@ -35,9 +35,8 @@ void *CUDADeviceAPI::AllocDataSpace(DLContext ctx, size_t size, size_t alignment
   CUDA_CALL(cudaSetDevice(ctx.device_id));
   assert((256 % alignment) == 0U); // << "CUDA space is aligned at 256 bytes";
   void *ret;
-  //printf("start allocating\n");
   cudaError_t e = cudaMalloc(&ret, size);
-  //printf("return code:%d\n", (int) e);
+
   if ((e != cudaSuccess) && (e != cudaErrorCudartUnloading)){
     //内存超了：
     return nullptr;
