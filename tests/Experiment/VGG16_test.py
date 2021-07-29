@@ -194,10 +194,6 @@ class VGG16(Process):
         self.f7.close()
 
     def run(self):
-        # try:
-        # if self.budget>0:
-        #     print(f'budget:{self.budget}')
-        #     SetCudaMemoryLimit(self.budget)
         X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224
         y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
 
@@ -211,8 +207,6 @@ class VGG16(Process):
         print("VGG16" + " type" + str(self.type) + " finish")
 
         record.stop()
-        # except Exception as e:
-        #     traceback.print_exc()
 
 
 if __name__ == "__main__":
