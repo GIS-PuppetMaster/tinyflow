@@ -70,7 +70,7 @@ for i in range(5):
     # axis[1, i].yaxis.set_major_locator(MultipleLocator(0.5))
     # axis[1, i].set_xlabel(f'{net_type[i]}')
     if i == 0:
-        axis[1, i].set_ylabel('Schedule Time(s)')
+        axis[1, i].set_ylabel('Time Cost(s)')
 
     df = df_list[2]
     df = np.array(df)[..., 1:]
