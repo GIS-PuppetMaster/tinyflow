@@ -127,7 +127,7 @@ def reduce_sum_new(in_arr, out_arr, cudnnlist, cudnnHandle, cudaStream,computesp
     memorytoSaving = ctypes.c_int(0)
     memorytoSaving = ctypes.pointer(memorytoSaving)
     if computespace!=None:
-        computespace=ctypes.c_int(computespace)
+        computespace=ctypes.c_longlong(computespace)
     else:
         computespace=ctypes.c_int(-1)
     _LIB.DLGpuReduceSum(in_arr.handle,out_arr.handle,cudnnlist, cudnnHandle, memorytoSaving, cudaStream,computespace)
@@ -297,7 +297,7 @@ def convolution_2d_forward(in_arr, in_filter, out_arr,cudnnlist, cudnnHandle, cu
     assert isinstance(in_filter, _nd.NDArray)
     assert isinstance(out_arr, _nd.NDArray)
     if computespace!=None:
-        computespace=ctypes.c_int(computespace)
+        computespace=ctypes.c_longlong(computespace)
     else:
         computespace=ctypes.c_int(-1)
     memorytoSaving = ctypes.c_int(0)
@@ -325,7 +325,7 @@ def convolution_backward_filter(in_arr,dout_arr,in_filter,in_dfilter, cudnnlist,
     assert isinstance(dout_arr, _nd.NDArray)
     assert isinstance(in_dfilter, _nd.NDArray)
     if computespace!=None:
-        computespace=ctypes.c_int(computespace)
+        computespace=ctypes.c_longlong(computespace)
     else:
         computespace=ctypes.c_int(-1)
     memorytoSaving = ctypes.c_int(0)
@@ -341,7 +341,7 @@ def convolution_backward_data(in_arr,dout_arr,in_filter,dinput_arr, cudnnlist, c
     assert isinstance(dout_arr, _nd.NDArray)
     assert isinstance(dinput_arr, _nd.NDArray)
     if computespace!=None:
-        computespace=ctypes.c_int(computespace)
+        computespace=ctypes.c_longlong(computespace)
     else:
         computespace=ctypes.c_int(-1)
     memorytoSaving = ctypes.c_int(0)
@@ -679,7 +679,7 @@ def dropout_forward(input,output,dataformat,dropout,seed,inputd, cudnnHandle, cu
     assert seed>=0
 
     if computespace!=None:
-        computespace=ctypes.c_int(computespace)
+        computespace=ctypes.c_longlong(computespace)
     else:
         computespace=ctypes.c_int(-1)
     dropout = ctypes.c_float(dropout)
@@ -828,7 +828,7 @@ def bn_forward(input,output,batchNormMode,n,mean_p,var_p,cudnnlist, cudnnHandle,
 
 
     if computespace!=None:
-        computespace=ctypes.c_int(computespace)
+        computespace=ctypes.c_longlong(computespace)
     else:
         computespace=ctypes.c_int(-1)
     memorytoSaving = ctypes.c_int(0)
@@ -856,7 +856,7 @@ def bn_backward(input,doutput,dinput,batchNormMode,mean_p,var_p,cudnnlist, cudnn
     else:
         assert 0
     if computespace!=None:
-        computespace=ctypes.c_int(computespace)
+        computespace=ctypes.c_longlong(computespace)
     else:
         computespace=ctypes.c_int(-1)
     memorytoSaving = ctypes.c_int(0)

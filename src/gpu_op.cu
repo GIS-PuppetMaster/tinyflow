@@ -825,7 +825,7 @@ int DLGReduceSumGetCudnnlist(const int *input_shapes,
 
 
 //new
-int DLGpuReduceSum(const DLArrayHandle input, DLArrayHandle output, void ***cudnnlist, void ** cudnnHandle, int *memorytoSaving, void **cudaStream,int computespace){
+int DLGpuReduceSum(const DLArrayHandle input, DLArrayHandle output, void ***cudnnlist, void ** cudnnHandle, int *memorytoSaving, void **cudaStream,long long computespace){
 
     void* indices= nullptr;
     void* workspace= nullptr;
@@ -845,10 +845,10 @@ int DLGpuReduceSum(const DLArrayHandle input, DLArrayHandle output, void ***cudn
     size_t *WorkspaceSize = (size_t *)((*cudnnlist)[4]);
 
 
-    int mycomputesapce=(int) *IndicesSize+(int) *WorkspaceSize;
+    long long mycomputesapce=(int) *IndicesSize+(int) *WorkspaceSize;
     if((mycomputesapce>computespace)&&(computespace!=-1))
     {
-       printf("%d,%d",mycomputesapce,computespace);
+       //printf("%d,%d",mycomputesapce,computespace);
        *memorytoSaving=mycomputesapce-computespace;
        return 0;
     }
@@ -1677,7 +1677,7 @@ int DLGpuConvolutionBackwardFilter(const DLArrayHandle input,
     const DLArrayHandle filter,
     DLArrayHandle dfilter,
     void*** cudnnlist,
-    void **cudnnHandle, int *memorytoSaving, void **cudaStream,int computespace) {
+    void **cudnnHandle, int *memorytoSaving, void **cudaStream,long long computespace) {
 
     //handle
     //cudnnHandle_t handle;
@@ -1721,7 +1721,7 @@ int DLGpuConvolutionBackwardFilter(const DLArrayHandle input,
         algo1,
         &workspace_size1));
     void* workspace1 = nullptr;
-    int mycomputesapce=(int) workspace_size1;
+    long long mycomputesapce=(int) workspace_size1;
     if((mycomputesapce>computespace)&&(computespace!=-1))
     {
        // printf("\n%d,%d",mycomputesapce,computespace);
@@ -1769,7 +1769,7 @@ int DLGpuConvolutionBackwardData(const DLArrayHandle input,
     const DLArrayHandle filter,
     DLArrayHandle dinput,
     void*** cudnnlist,
-    void ** cudnnHandle, int *memorytoSaving, void **cudaStream,int computespace) {
+    void ** cudnnHandle, int *memorytoSaving, void **cudaStream,long long computespace) {
 
 
 
@@ -1815,7 +1815,7 @@ int DLGpuConvolutionBackwardData(const DLArrayHandle input,
         algo2,
         &workspace_size2));
     void* workspace2 = nullptr;
-    int mycomputesapce=(int) workspace_size2;
+    long long mycomputesapce=(int) workspace_size2;
     if((mycomputesapce>computespace)&&(computespace!=-1))
     {
        // printf("\n%d,%d",mycomputesapce,computespace);
@@ -1988,7 +1988,7 @@ int DLGpuConvolution2DForward(const DLArrayHandle input,
     const DLArrayHandle filter,
     DLArrayHandle output,
     void ***cudnnlist,
-    void ** cudnnHandle, int *memorytoSaving, void **cudaStream,int computespace) {
+    void ** cudnnHandle, int *memorytoSaving, void **cudaStream,long long computespace) {
 
     assert(input->ndim == 4);
     assert(filter->ndim == 4);
@@ -2038,10 +2038,10 @@ int DLGpuConvolution2DForward(const DLArrayHandle input,
         &workspace_size));
     void* workspace = nullptr;
 
-    int mycomputesapce=(int) workspace_size;
+    long long mycomputesapce=(int) workspace_size;
     if((mycomputesapce>computespace)&&(computespace!=-1))
     {
-       // printf("\n%d,%d",mycomputesapce,computespace);
+       //printf("\n????%d,%lld\n",mycomputesapce,computespace);
        *memorytoSaving=mycomputesapce-computespace;
        return 0;
     }
@@ -3593,7 +3593,7 @@ int DLGpuDropoutForward(const DLArrayHandle input,
     void **reserveSpace_p,/*back use*/
     void ***inputd,
     void ***cudnnlist,
-    void **cudnnHandle, int *memorytoSaving, void **cudaStream,int computespace){
+    void **cudnnHandle, int *memorytoSaving, void **cudaStream,long long computespace){
 
 
 
@@ -3617,7 +3617,7 @@ int DLGpuDropoutForward(const DLArrayHandle input,
         &reserveSpaceSizeInBytes));
 
 
-    int mycomputesapce=(int) stateSizeInBytes+(int) reserveSpaceSizeInBytes;
+    long long mycomputesapce=(int) stateSizeInBytes+(int) reserveSpaceSizeInBytes;
     if((mycomputesapce>computespace)&&(computespace!=-1))
     {
        // printf("\n%d,%d",mycomputesapce,computespace);
@@ -4291,7 +4291,7 @@ int DLGpuBatchNormalizationForward(const DLArrayHandle input,
     void **mean_p,
     void **Variance_p,
     void ***cudnnlist,
-    void **cudnnHandle, int *memorytoSaving, void **cudaStream,int computespace) {
+    void **cudnnHandle, int *memorytoSaving, void **cudaStream,long long computespace) {
 
 
 
@@ -4316,7 +4316,7 @@ int DLGpuBatchNormalizationForward(const DLArrayHandle input,
     float *resultSaveInvVariance;
 
 
-    int mycomputesapce=4*((int) *s);
+    long long mycomputesapce=4*((int) *s);
     if((mycomputesapce>computespace)&&(computespace!=-1))
     {
        //printf("\n%d,%d",mycomputesapce,computespace);
@@ -4429,7 +4429,7 @@ int DLGpuBatchNormalizationBackward(const DLArrayHandle input,
     void **mean_p,
     void **Variance_p,
     void ***cudnnlist,
-    void **cudnnHandle, int *memorytoSaving, void **cudaStream,int computespace) {
+    void **cudnnHandle, int *memorytoSaving, void **cudaStream,long long computespace) {
 
     //assert(input->ndim==4||input->ndim==3||input->ndim==5);
 
@@ -4454,7 +4454,7 @@ int DLGpuBatchNormalizationBackward(const DLArrayHandle input,
     float *resultBnScaleDiff;
     float *resultBnBiasDiff;
 
-    int mycomputesapce=3*((int) *s);
+    long long mycomputesapce=3*((int) *s);
     if((mycomputesapce>computespace)&&(computespace!=-1))
     {
        //printf("\n%d,%d",mycomputesapce,computespace);

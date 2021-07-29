@@ -221,7 +221,7 @@ TINYFLOW_EXTERN_C {
       cudnnTensorFormat_t dataformat,
       void *** cudnnlist,
       void **cudnnHandle);
-  int DLGpuReduceSum(const DLArrayHandle input, DLArrayHandle output, void ***cudnnlist, void **cudnnHandle, int *memorytoSaving, void **cudaStream,int computespace);
+  int DLGpuReduceSum(const DLArrayHandle input, DLArrayHandle output, void ***cudnnlist, void **cudnnHandle, int *memorytoSaving, void **cudaStream,long long  computespace);
 
   int DLGpuConcatForward(const DLArrayHandle input1,const DLArrayHandle input2,  DLArrayHandle output, void **cudaStream);
   int DLGpuConcataBackward(const DLArrayHandle input1,const DLArrayHandle input2,const DLArrayHandle doutput,DLArrayHandle dinput1, void **cudaStream);
@@ -246,14 +246,14 @@ TINYFLOW_EXTERN_C {
       const DLArrayHandle filter,
       DLArrayHandle dfilter,
       void*** cudnnlist,
-    void **cudnnHandle, int *memorytoSaving, void **cudaStream,int computespace);
+    void **cudnnHandle, int *memorytoSaving, void **cudaStream,long long  computespace);
 
   int DLGpuConvolutionBackwardData(const DLArrayHandle input,
       const DLArrayHandle doutput,
       const DLArrayHandle filter,
       DLArrayHandle dinput,
       void*** cudnnlist,
-      void **cudnnHandle, int *memorytoSaving, void **cudaStream,int computespace);
+      void **cudnnHandle, int *memorytoSaving, void **cudaStream,long long  computespace);
 
 
 
@@ -261,7 +261,7 @@ TINYFLOW_EXTERN_C {
       const DLArrayHandle filter,
       DLArrayHandle output,
       void ***cudnnlist,/* horizontal filter stride */
-      void **cudnnHandle, int *memorytoSaving, void **cudaStream,int computespace);
+      void **cudnnHandle, int *memorytoSaving, void **cudaStream,long long  computespace);
 
 
   int DLGpuConvolution3DForward(const DLArrayHandle input,
@@ -440,7 +440,7 @@ TINYFLOW_EXTERN_C {
     void **reserveSpace_p,
     void ***inputd,
     void ***cudnnlist,
-    void **cudnnHandle, int *memorytoSaving, void **cudaStream,int computespace);
+    void **cudnnHandle, int *memorytoSaving, void **cudaStream,long long  computespace);
 
   int DLGpuDropoutBackward(const DLArrayHandle doutput,
     DLArrayHandle dinput,
@@ -497,7 +497,7 @@ TINYFLOW_EXTERN_C {
     void **mean_p,
     void **Variance_p,
     void ***cudnnlist,
-    void **cudnnHandle, int *memorytoSaving, void **cudaStream,int computespace);
+    void **cudnnHandle, int *memorytoSaving, void **cudaStream,long long  computespace);
 
 
   int DLGpuBatchNormalizationBackward(const DLArrayHandle input,
@@ -507,7 +507,7 @@ TINYFLOW_EXTERN_C {
     void **mean_p,
     void **Variance_p,
     void ***cudnnlist,
-    void **cudnnHandle, int *memorytoSaving, void **cudaStream,int computespace);
+    void **cudnnHandle, int *memorytoSaving, void **cudaStream,long long  computespace);
   
   int DLGpuAdam(DLArrayHandle output,
                 const DLArrayHandle m, const DLArrayHandle v,

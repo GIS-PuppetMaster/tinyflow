@@ -15,8 +15,10 @@ class capuchin:
         # 策略，代表每一步做什么
         # 0 什么都不做, 1，swapout, 2 swapin, 3 swap中,什么都不能做
         self.policy = [0]*len(self.tensor_access_list)
+        self.policy_in=[0]*len(self.tensor_access_list)
         # 比policy后执行,然后网络等待这一步运行完再继续运行,1和3都是等这步算完了在进行 0 什么都不做，1，swapout, 2 swapin, 3 free ,4 重计算
         self.prior_policy = [0]*len(self.tensor_access_list)
+        self.prior_policy_in= [0]*len(self.tensor_access_list)
         self.swap = [-1]*len(self.tensor_access_list)
         self.end_time=0
     def add_tensor_access_info(self, tensor_id, access_count, timestamp):
@@ -49,7 +51,9 @@ class capuchin:
 
     def hybrid_policy(self,memory_tosaving,end_time):
         self.policy = [0] * len(self.tensor_access_list)
+        self.policy_in = [0] * len(self.tensor_access_list)
         self.prior_policy = [0] * len(self.tensor_access_list)
+        self.prior_policy_in = [0] * len(self.tensor_access_list)
         self.swap = [-1] * len(self.tensor_access_list)
         self.memory_tosaving=memory_tosaving
         self.end_time=end_time
@@ -59,7 +63,7 @@ class capuchin:
                 if node.access_count > 1:
                     # print(node.access_count-1,":")
                     for i in range(0,node.access_count):
-                       if  i+1 in node.peekaccess :
+                        if  i+1 in node.peekaccess :
                            self.candidates.append((node.index,node.FT[i],i))
 
             # 位于高峰也加入，咋判断高峰
@@ -126,27 +130,25 @@ class capuchin:
                      break
 
             # 布置策略
-            if(self.swap[out_start]!=-1):
-                print("out有问题")
+            for i in range(out_start, out_end+1):
+                if self.swap[i]!=-1 or self.policy[i]!=0:
+                    return False
+            for i in range(in_start, in_end):
+                if self.swap[i]!=-1 or self.policy[i]!=0:
+                    return False
+
+
             self.policy[out_start] = 1
             self.swap[out_start] = t
-            if self.tensor_access_list[out_start][0]!=t:
-                print("out问题")
 
             for i in range(out_start + 1, out_end+1):
                 self.policy[i] = 3
-                if self.swap[i]!=-1:
-                    print("out有小问题")
-
-            for i in range(in_start, in_end+1):
-                if self.swap[i]!=-1 or self.policy[i]!=0:
-                    return False
 
             self.policy[in_start] = 2
             self.swap[in_start] = t
             for i in range(in_start + 1, in_end):
                 self.policy[i] = 4
-            self.policy[in_end] = 5
+            self.policy_in[in_end] = 5
             if self.tensor_access_list[in_end][0]!=t:
                 print("in问题")
             #从候选移除
@@ -223,7 +225,7 @@ class capuchin:
                 if (s_overhead <=r_overhead or re_id==-1 )and self.prior_policy[self.topo_order[t[0]].use_access_id[t[2]]]==0:
                     self.prior_policy[self.topo_order[t[0]].use_access_id[t[2]]] = 1
                     if t[2] != len(self.topo_order[t[0]].FT) - 1:
-                        self.prior_policy[self.topo_order[t[0]].use_access_id[t[2] + 1]] = 2
+                        self.prior_policy_in[self.topo_order[t[0]].use_access_id[t[2] + 1]] = 2
                         # 从候选移除
                     self.memory_tosaving -= self.topo_order[t[0]].memory
                     self.candidates.remove((t[0], self.topo_order[t[0]].FT[t[2]], t[2]))
@@ -233,7 +235,7 @@ class capuchin:
                     # 布置策略
                     self.prior_policy[self.topo_order[re_id].use_access_id[ti]] = 3
                     if ti != len(self.topo_order[re_id].FT) - 1:
-                        self.prior_policy[self.topo_order[re_id].use_access_id[ti+1]] = 4
+                        self.prior_policy_in[self.topo_order[re_id].use_access_id[ti+1]] = 4
                     recomputation_policy(re_id,ti)
 
                 if self.memory_tosaving <= 0:

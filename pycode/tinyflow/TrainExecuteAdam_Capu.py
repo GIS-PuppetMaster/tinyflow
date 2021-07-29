@@ -478,26 +478,25 @@ class TrainExecutor(object):
             elif node.array_status == 0 and index_to_cpu_flag[node.index]==False:
                 self.arrive_to_cpu(node)
 
-
-
     def policy_run(self, input_node):
         global swap_in_id
         global swap_in_flag
         policy = self.capu.policy[self.access_index]
+        policy_in = self.capu.policy_in[self.access_index]
         # print(input_node,input_node.array_status,policy,index_to_cpu_flag[input_node.index])
         if policy == 2:
             swap_id = self.capu.swap[self.access_index]
             swap_node = self.topo_order[swap_id]
             if swap_node.array_status == 0:
                 self.arrive_to_cpu(swap_node)
-                self.will_do_queue.put((swap_id,1))
+                self.will_do_queue.put((swap_id, 1))
                 swap_node.array_status = 1
             else:
-                swap_in_id=swap_id
-                swap_in_flag=True
+                swap_in_id = swap_id
+                swap_in_flag = True
             self.reflush_access.append(self.access_index)
-        elif policy == 5:
-            if index_to_cpu_flag[input_node.index] != False :
+        if policy_in == 5:
+            if index_to_cpu_flag[input_node.index] != False:
                 while index_to_cpu_flag[input_node.index] != False or swap_in_id != input_node.index:
 
                     if input_node.array_status == 0:
@@ -515,10 +514,12 @@ class TrainExecutor(object):
     # 无法在策略中掩藏开销的，进行该操作
     def prior_policy_run(self, input_node, node):
         prior_policy = self.capu.prior_policy[self.access_index]
-        if prior_policy == 2:
-            if input_node.array_status == 0 :
+        prior_policy_in = self.capu.prior_policy_in[self.access_index]
+        if prior_policy_in == 2:
+            if input_node.array_status == 0:
                 self.arrive_to_cpu(input_node)
-                ret = ndarray.empty(self.node_to_shape_map[input_node], ctx=self.ctx,maxmem=self.maxmem,nowmem=input_node.memory)
+                ret = ndarray.empty(self.node_to_shape_map[input_node], ctx=self.ctx, maxmem=self.maxmem,
+                                    nowmem=input_node.memory)
                 if isinstance(ret, int):
                     ret = self.tensors_evict(ret, input_node, node)
                 # 此时ret为ndarray
@@ -527,8 +528,9 @@ class TrainExecutor(object):
                 index_to_gpu_map[input_node.index] = ret
                 input_node.array_status = 1
                 index_to_cpu_flag[input_node.index] = False
-        elif prior_policy == 4:
-            self.recompute(input_node,node)
+        elif prior_policy_in == 4:
+            if input_node.array_status == 2:
+                self.recompute(input_node, node)
         self.access_index += 1
         return prior_policy
 
