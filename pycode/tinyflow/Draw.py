@@ -13,9 +13,12 @@ df_list = []
 with open('./log/MultiWorkloadsMSR.csv') as f:
     df = pd.read_csv(f, index_col=False)
     df_list.append(df)
-with open('./log/MultiWorkloadsEOR.csv') as f:
+with open('./log/MultiWorkloadsTIME.csv') as f:
     df = pd.read_csv(f, index_col=False)
     df_list.append(df)
+# with open('./log/MultiWorkloadsEOR.csv') as f:
+#     df = pd.read_csv(f, index_col=False)
+#     df_list.append(df)
 with open('./log/MultiWorkloadsCBR.csv') as f:
     df = pd.read_csv(f, index_col=False)
     df_list.append(df)
@@ -64,10 +67,10 @@ for i in range(5):
     axis[1, i].plot(x, TENSILE, 'rx-', label='TENSILE$_{cs}$')
     axis[1, i].plot(x, vDNN, 'y^-', label='vDNN')
     axis[1, i].plot(x, Capuchin, 'go-', label='Capuchin')
-    axis[1, i].yaxis.set_major_locator(MultipleLocator(0.5))
+    # axis[1, i].yaxis.set_major_locator(MultipleLocator(0.5))
     # axis[1, i].set_xlabel(f'{net_type[i]}')
     if i == 0:
-        axis[1, i].set_ylabel('EOR')
+        axis[1, i].set_ylabel('Schedule Time(s)')
 
     df = df_list[2]
     df = np.array(df)[..., 1:]

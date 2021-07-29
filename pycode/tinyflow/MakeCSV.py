@@ -3,8 +3,10 @@ import pandas as pd
 import numpy as np
 
 file_list = ['VGG', 'VGG x1', 'VGG x2', 'VGG x3', 'VGG MDW', 'VGG bs4', 'VGG bs8', 'VGG bs32',
-             'Inception V3', 'Inception V3 x1', 'Inception V3 x2', 'Inception V3 x3', 'Inception V3 MDW', 'Inception V3 bs4', 'Inception V3 bs8', 'Inception V3 bs32',
-             'Inception V4', 'Inception V4 x1', 'Inception V4 x2', 'Inception V4 x3', 'Inception V4 MDW', 'Inception V4 bs4', 'Inception V4 bs8',
+             'Inception V3', 'Inception V3 x1', 'Inception V3 x2', 'Inception V3 x3', 'Inception V3 MDW',
+             'Inception V3 bs4', 'Inception V3 bs8', 'Inception V3 bs32',
+             'Inception V4', 'Inception V4 x1', 'Inception V4 x2', 'Inception V4 x3', 'Inception V4 MDW',
+             'Inception V4 bs4', 'Inception V4 bs8',
              'ResNet', 'ResNet x1', 'ResNet x2', 'ResNet x3', 'ResNet MDW', 'ResNet bs4', 'ResNet bs8', 'ResNet bs32',
              'DenseNet', 'DenseNet x1', 'DenseNet x2', 'DenseNet x3', 'DenseNet MDW', 'DenseNet bs4', 'DenseNet bs8']
 single_workloads = ['VGG', 'Inception V3', 'Inception V4', 'ResNet', 'DenseNet']
@@ -26,13 +28,17 @@ batch_size_workloads = ['VGG x1', 'VGG bs4', 'VGG bs8', 'VGG', 'VGG bs32',
                         'ResNet x1', 'ResNet bs4', 'ResNet bs8', 'ResNet', 'ResNet bs32',
                         'DenseNet x1', 'DenseNet bs4', 'DenseNet bs8', 'DenseNet']
 batch_size_workloads_col = {'VGG x1': 0, 'VGG bs4': 1, 'VGG bs8': 2, 'VGG': 3, 'VGG bs32': 4,
-                            'Inception V3 x1': 0, 'Inception V3 bs4': 1, 'Inception V3 bs8': 2, 'Inception V3': 3, 'Inception V3 bs32': 4,
+                            'Inception V3 x1': 0, 'Inception V3 bs4': 1, 'Inception V3 bs8': 2, 'Inception V3': 3,
+                            'Inception V3 bs32': 4,
                             'Inception V4 x1': 0, 'Inception V4 bs4': 1, 'Inception V4 bs8': 2, 'Inception V4': 3,
                             'ResNet x1': 0, 'ResNet bs4': 1, 'ResNet bs8': 2, 'ResNet': 3, 'ResNet bs32': 4,
                             'DenseNet x1': 0, 'DenseNet bs4': 1, 'DenseNet bs8': 2, 'DenseNet': 3}
-title = ['saved_ratio', 'extra_overhead', 'vanilla_max_memory_used', 'schedule_max_memory_used', 'vanilla_time_cost', 'schedule_time_cost', 'efficiency', '', '',
-         'saved_ratio_cold_start', 'extra_overhead_cold_start', 'schedule_max_memory_used_cold_start', 'efficiency_cold_start']
-baseline_title = ['vanilla', 'max_memory', 'time', '', 'vDNN', 'max_memory', 'time', 'memory_saved', 'extra_overhead', 'efficiency', '', 'capuchin', 'max_memory', 'time', 'memory_saved', 'extra_overhead',
+title = ['saved_ratio', 'extra_overhead', 'vanilla_max_memory_used', 'schedule_max_memory_used', 'vanilla_time_cost',
+         'schedule_time_cost', 'efficiency', '', '',
+         'saved_ratio_cold_start', 'extra_overhead_cold_start', 'schedule_max_memory_used_cold_start',
+         'efficiency_cold_start']
+baseline_title = ['vanilla', 'max_memory', 'time', '', 'vDNN', 'max_memory', 'time', 'memory_saved', 'extra_overhead',
+                  'efficiency', '', 'capuchin', 'max_memory', 'time', 'memory_saved', 'extra_overhead',
                   'efficiency']
 
 
@@ -54,7 +60,7 @@ def get_row(path_):
 
 def make_csv():
     # single_workloads
-    data = np.zeros((5, 3))
+    data = np.zeros((5, 4))
     for file in single_workloads:
         path = './log/' + file
         path = os.path.join(path, 'repeat_3_result.txt')
@@ -71,6 +77,9 @@ def make_csv():
                 col = 0
             elif i == 1:
                 col = 1
+            elif i == 5:
+                col = 3
+                mean *= 50
             elif i == 6:
                 col = 2
             else:
@@ -79,12 +88,13 @@ def make_csv():
             data[row, col] = mean
     df = pd.DataFrame(data)
     df.index = single_workloads
-    df.columns = ['MSR', 'EOR', "CBR"]
+    df.columns = ['MSR', 'EOR', "CBR", "TIME"]
     df.to_csv('./log/SingleWorkloads.csv')
 
     # multi_workloads
     MSR = np.zeros((15, 3))
     EOR = np.zeros((15, 3))
+    TIME = np.zeros((15, 3))
     CBR = np.zeros((15, 3))
     MSR_cold_start = np.zeros((15, 3))
     EOR_cold_start = np.zeros((15, 3))
@@ -101,7 +111,7 @@ def make_csv():
         with open(path, 'r') as f:
             lines = f.readlines()
         for i, line in enumerate(lines):
-            if i == 0 or i == 1 or i == 6 or i == 9 or i == 10 or i == 12:
+            if i in [0, 1, 5, 6, 9, 10, 12]:
                 assert title[i] in line
                 temp = line.replace(title[i] + ':', '')
                 mean = float(format(float(temp.split(' ')[0]), '.4f'))
@@ -120,6 +130,8 @@ def make_csv():
                     MSR[row, col] = mean
                 elif i == 1:
                     EOR[row, col] = mean
+                elif i == 5:
+                    TIME[row, col] = mean * 50
                 elif i == 6:
                     CBR[row, col] = mean
                 elif i == 9:
@@ -135,7 +147,7 @@ def make_csv():
             lines = f.readlines()
         for i, line in enumerate(lines):
             # assert baseline_title[i] in line, line
-            if i in [7, 8, 9, 14, 15, 16]:
+            if i in [6, 7, 8, 9, 13, 14, 15, 16]:
                 temp = line.replace(baseline_title[i] + ':', '')
                 mean = float(format(float(temp.split(' ')[0]), '.4f'))
                 # todo: MDW
@@ -157,6 +169,8 @@ def make_csv():
                         EOR[row, col] = mean
                     elif i == 9:
                         CBR[row, col] = mean
+                    elif i == 6:
+                        TIME[row, col] = mean
                 # Capuchin
                 elif 12 <= i:
                     row = get_row(path) + 10
@@ -166,30 +180,50 @@ def make_csv():
                         EOR[row, col] = mean
                     elif i == 16:
                         CBR[row, col] = mean
+                    elif i == 13:
+                        TIME[row, col] = mean
     df = pd.DataFrame(MSR)
-    df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t for t in single_workloads]
+    df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t
+                                                                                                       for t in
+                                                                                                       single_workloads]
     df.columns = ['x1', 'x2', "x3"]
     df.to_csv('./log/MultiWorkloadsMSR.csv')
     df = pd.DataFrame(EOR)
-    df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t for t in single_workloads]
+    df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t
+                                                                                                       for t in
+                                                                                                       single_workloads]
     df.columns = ['x1', 'x2', "x3"]
     df.to_csv('./log/MultiWorkloadsEOR.csv')
     df = pd.DataFrame(CBR)
-    df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t for t in single_workloads]
+    df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t
+                                                                                                       for t in
+                                                                                                       single_workloads]
     df.columns = ['x1', 'x2', "x3"]
     df.to_csv('./log/MultiWorkloadsCBR.csv')
     df = pd.DataFrame(MSR_cold_start)
-    df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t for t in single_workloads]
+    df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t
+                                                                                                       for t in
+                                                                                                       single_workloads]
     df.columns = ['x1', 'x2', "x3"]
     df.to_csv('./log/MultiWorkloadsMSR_cold_start.csv')
     df = pd.DataFrame(EOR_cold_start)
-    df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t for t in single_workloads]
+    df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t
+                                                                                                       for t in
+                                                                                                       single_workloads]
     df.columns = ['x1', 'x2', "x3"]
     df.to_csv('./log/MultiWorkloadsEOR_cold_start.csv')
     df = pd.DataFrame(CBR_cold_start)
-    df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t for t in single_workloads]
+    df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t
+                                                                                                       for t in
+                                                                                                       single_workloads]
     df.columns = ['x1', 'x2', "x3"]
     df.to_csv('./log/MultiWorkloadsCBR_cold_start.csv')
+    df = pd.DataFrame(TIME)
+    df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t
+                                                                                                       for t in
+                                                                                                       single_workloads]
+    df.columns = ['x1', 'x2', "x3"]
+    df.to_csv('./log/MultiWorkloadsTIME.csv')
 
     # batch_size
     MSR = np.zeros((5, 5))
