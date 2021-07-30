@@ -6,7 +6,6 @@ from pycode.tinyflow import autodiff_capu as ad
 import datetime
 import queue
 import threading
-import pynvml
 
 index_to_cpu_map = {}
 index_to_cpu_flag = {}
@@ -117,9 +116,14 @@ class TrainExecutor(object):
         for i in range(len(self.topo_order)):
             self.topo_order[i].index = i
             node=self.topo_order[i]
-            if node.name == "FullyDropoutBackward" or node.name == "DropoutBackward":
+            if node.name == "FullyDropoutBackward" or node.name == "DropoutBackward" or node.name == "BNBackward" or node.name == "FullyBNBackward":
                 node.isdrop=1
                     # 日志记录
+        # for i in range(len(self.topo_order)):
+        #     self.topo_order[i].index = i
+        #     node=self.topo_order[i]
+        #     if node.name == "FullyDropoutBackward" or node.name == "DropoutBackward":
+        #         node.isdrop=1
         self.capu = capuchinadam.capuchin(self.topo_order)
         self.start_finish_time = 0
         self.hit_count = 0
@@ -372,6 +376,7 @@ class TrainExecutor(object):
             node_computed = set()
             for idx in range(len(self.topo_order)):
 
+
                 node = self.topo_order[idx]
                  # 已经被计算过了
                 if node in node_computed:
@@ -613,7 +618,7 @@ class TrainExecutor(object):
         index_to_cpu_flag[rep_node.index] = False
 
         node_val = index_to_gpu_map[rep_node.index]
-
+        # print(rep_node)
         memorytoSaving = rep_node.op.compute(rep_node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
         if memorytoSaving != 0:
             # 这里被动模式
