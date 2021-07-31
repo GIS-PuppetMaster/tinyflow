@@ -5,6 +5,8 @@ import traceback
 import numpy as np
 import imp, os, datetime
 
+from tqdm import tqdm
+
 from pycode.tinyflow import ndarray
 from tests.Experiment import record_GPU
 from multiprocessing import Process
@@ -157,7 +159,7 @@ class DenseNet121(Process):
             time2 = datetime.datetime.now()
             print("epoch", i + 1, "use", (time2 - time1).total_seconds()
                   , "\tstart", time1, "\tend", time2, file=self.f1)
-            print("DenseNet num_step", i)
+            # print("DenseNet num_step", i)
         start_finish_time = datetime.datetime.now()
         print((start_finish_time-start_time).total_seconds(), file=self.f3)
         hit_count, swap_count = t.get_hit()
@@ -172,21 +174,18 @@ class DenseNet121(Process):
         self.f7.close()
 
     def run(self):
-        try:
-            X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224
-            y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
+        X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224
+        y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))  # n_class = 1000
 
-            record = record_GPU.record("DenseNet", self.type, self.gpu_num, self.path, self.file_name)
-            record.start()
+        record = record_GPU.record("DenseNet", self.type, self.gpu_num, self.path, self.file_name)
+        record.start()
 
-            print("DenseNet" + " type" + str(self.type) + " start")
+        print("DenseNet" + " type" + str(self.type) + " start")
 
-            self.dense_net(num_step=self.num_step, n_class=1000, X_val=X_val, y_val=y_val)
+        self.dense_net(num_step=self.num_step, n_class=1000, X_val=X_val, y_val=y_val)
 
-            print("DenseNet" + " type" + str(self.type) + " finish")
+        print("DenseNet" + " type" + str(self.type) + " finish")
 
-            record.stop()
-        except Exception as e:
-            traceback.print_exc()
+        record.stop()
 
 

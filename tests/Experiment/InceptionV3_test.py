@@ -523,8 +523,8 @@ class Inceptionv3(Process):
         loss = self.ad.crossEntropy_loss(y, y_)
         # fc8
 
-        X_val = np.empty(shape=(self.batch_size, 3, 299, 299), dtype=np.float32)
-        y_val = np.empty(shape=(self.batch_size, 1000), dtype=np.float32)
+        X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 299, 299))
+        y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))
         aph = 0.001
         if self.is_capu == True and self.budget != None:
             self.ad.setmaxmem(self.budget)
@@ -602,12 +602,12 @@ class Inceptionv3(Process):
         return 0
     def run(self):
         # try:
-            record = record_GPU.record("InceptionV3", self.type, self.gpu_num, self.path, self.file_name)
-            record.start()
-            print("InceptionV3" + " type" + str(self.type) + " start")
+        record = record_GPU.record("InceptionV3", self.type, self.gpu_num, self.path, self.file_name)
+        record.start()
+        print("InceptionV3" + " type" + str(self.type) + " start")
 
-            self.inception_v3()
-            print("InceptionV3" + " type" + str(self.type) + " finish")
-            record.stop()
+        self.inception_v3()
+        print("InceptionV3" + " type" + str(self.type) + " finish")
+        record.stop()
         # except Exception as e:
         #     traceback.print_exc()

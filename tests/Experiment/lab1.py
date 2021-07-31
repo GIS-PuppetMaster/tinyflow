@@ -122,3 +122,16 @@ def Experiment1():
 
 if __name__ == "__main__":
     Experiment1()
+    # for net_name in net_names[3:]:
+    #     for i, num_net in enumerate([1, 1, 2, 3]):
+    #         if i == 0:
+    #             batch_size = 16
+    #             net_name_ = net_name
+    #         else:
+    #             batch_size = 2
+    #             net_name_ = net_name + f' x{i}'
+    #         try:
+    #             get_result(f'./log/{net_name_}/', repeat_times=3, need_tosave=[])
+    #         except Exception as e:
+    #             print(net_name_)
+    #             traceback.print_exc()

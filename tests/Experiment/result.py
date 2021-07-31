@@ -24,12 +24,9 @@ def get_result(path, repeat_times, net_order=0, need_tosave=None, skip=None):
             lines = f.readlines()
         vanilla_max_memory = 0
         for line in lines:
-            try:
-                memory = float(line.split('\t')[1].split(' ')[1])
-                if memory > vanilla_max_memory:
-                    vanilla_max_memory = memory
-            except:
-                pass
+            memory = float(line.split('\t')[1].split(' ')[1])
+            if memory > vanilla_max_memory:
+                vanilla_max_memory = memory
         all_vanilla_max_memory.append(vanilla_max_memory)
         with open(f'{path}type0_repeat_time={re_t}_net_order={net_order}_record_3.txt', 'r') as f:
             lines = f.readlines()
@@ -43,12 +40,9 @@ def get_result(path, repeat_times, net_order=0, need_tosave=None, skip=None):
                 lines = f.readlines()
             max_memory = 0
             for line in lines:
-                try:
-                    memory = float(line.split('\t')[1].split(' ')[1])
-                    if memory > max_memory:
-                        max_memory = memory
-                except:
-                    pass
+                memory = float(line.split('\t')[1].split(' ')[1])
+                if memory > max_memory:
+                    max_memory = memory
             all_vdnn_max_memory.append(max_memory)
             with open(f'{path}type2_repeat_time={re_t}_net_order={net_order}_record_3.txt', 'r') as f:
                 lines = f.readlines()
@@ -82,10 +76,11 @@ def get_result(path, repeat_times, net_order=0, need_tosave=None, skip=None):
             all_capuchin_max_memory.append(max_memory)
             with open(f'{path}type1_repeat_time={re_t}_net_order={net_order}_record_3.txt', 'r') as f:
                 lines = f.readlines()
-            try:
-                time = float(lines[0])
-            except:
-                print(f'exception: {path}type1_repeat_time={re_t}_net_order={net_order}_record_3.txt')
+            time = float(lines[0])
+            # try:
+            #     time = float(lines[0])
+            # except:
+            #     print(f'exception: {path}type1_repeat_time={re_t}_net_order={net_order}_record_3.txt')
             all_capuchin_time.append(time)
             memory_saved = 1 - max_memory / vanilla_max_memory
             extra_overhead = time / vanilla_time - 1

@@ -372,12 +372,9 @@ class Inceptionv4(Process):
         return 0
 
     def run(self):
-        try:
-            record = record_GPU.record("InceptionV4", self.type, self.gpu_num, self.path, self.file_name)
-            record.start()
-            print("InceptionV4" + " type" + str(self.type) + " start")
-            self.inception_v4()
-            print("InceptionV4" + " type" + str(self.type) + " finish")
-            record.stop()
-        except Exception as e:
-            traceback.print_exc()
+        record = record_GPU.record("InceptionV4", self.type, self.gpu_num, self.path, self.file_name)
+        record.start()
+        print("InceptionV4" + " type" + str(self.type) + " start")
+        self.inception_v4()
+        print("InceptionV4" + " type" + str(self.type) + " finish")
+        record.stop()
