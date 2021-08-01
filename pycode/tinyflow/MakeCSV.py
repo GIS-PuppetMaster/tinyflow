@@ -41,6 +41,7 @@ title = ['saved_ratio', 'extra_overhead', 'vanilla_max_memory_used', 'schedule_m
 baseline_title = ['vanilla', 'max_memory', 'time', '', 'vDNN', 'max_memory', 'time', 'memory_saved', 'extra_overhead',
                   'efficiency', '', 'capuchin', 'max_memory', 'time', 'memory_saved', 'extra_overhead',
                   'efficiency']
+result_csv_log = 'D:\PycharmProjects\TENSILE实验数据/baseline/log/'
 
 
 def get_row(path_):
@@ -90,7 +91,7 @@ def make_csv():
     df = pd.DataFrame(data)
     df.index = single_workloads
     df.columns = ['MSR', 'EOR', "CBR", "TIME"]
-    df.to_csv('./log/SingleWorkloads.csv')
+    df.to_csv(result_csv_log+'SingleWorkloads.csv')
 
     # multi_workloads
     MSR = np.zeros((15, 3))
@@ -188,43 +189,43 @@ def make_csv():
                                                                                                        for t in
                                                                                                        single_workloads]
     df.columns = ['x1', 'x2', "x3"]
-    df.to_csv('./log/MultiWorkloadsMSR.csv')
+    df.to_csv(result_csv_log+'MultiWorkloadsMSR.csv')
     df = pd.DataFrame(EOR)
     df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t
                                                                                                        for t in
                                                                                                        single_workloads]
     df.columns = ['x1', 'x2', "x3"]
-    df.to_csv('./log/MultiWorkloadsEOR.csv')
+    df.to_csv(result_csv_log+'MultiWorkloadsEOR.csv')
     df = pd.DataFrame(CBR)
     df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t
                                                                                                        for t in
                                                                                                        single_workloads]
     df.columns = ['x1', 'x2', "x3"]
-    df.to_csv('./log/MultiWorkloadsCBR.csv')
+    df.to_csv(result_csv_log+'MultiWorkloadsCBR.csv')
     df = pd.DataFrame(MSR_cold_start)
     df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t
                                                                                                        for t in
                                                                                                        single_workloads]
     df.columns = ['x1', 'x2', "x3"]
-    df.to_csv('./log/MultiWorkloadsMSR_cold_start.csv')
+    df.to_csv(result_csv_log+'MultiWorkloadsMSR_cold_start.csv')
     df = pd.DataFrame(EOR_cold_start)
     df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t
                                                                                                        for t in
                                                                                                        single_workloads]
     df.columns = ['x1', 'x2', "x3"]
-    df.to_csv('./log/MultiWorkloadsEOR_cold_start.csv')
+    df.to_csv(result_csv_log+'MultiWorkloadsEOR_cold_start.csv')
     df = pd.DataFrame(CBR_cold_start)
     df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t
                                                                                                        for t in
                                                                                                        single_workloads]
     df.columns = ['x1', 'x2', "x3"]
-    df.to_csv('./log/MultiWorkloadsCBR_cold_start.csv')
+    df.to_csv(result_csv_log+'MultiWorkloadsCBR_cold_start.csv')
     df = pd.DataFrame(TIME)
     df.index = ['TENSILE:' + t for t in single_workloads] + ['vDNN:' + t for t in single_workloads] + ['Capuchin:' + t
                                                                                                        for t in
                                                                                                        single_workloads]
     df.columns = ['x1', 'x2', "x3"]
-    df.to_csv('./log/MultiWorkloadsTIME.csv')
+    df.to_csv(result_csv_log+'MultiWorkloadsTIME.csv')
 
     # batch_size
     MSR = np.zeros((5, 5))
@@ -257,12 +258,12 @@ def make_csv():
     df = pd.DataFrame(MSR)
     df.index = single_workloads
     df.columns = ['2', '4', '8', '16', '32']
-    df.to_csv('./log/BatchSizeMSR.csv')
+    df.to_csv(result_csv_log+'BatchSizeMSR.csv')
     df = pd.DataFrame(EOR)
     df.index = single_workloads
     df.columns = ['2', '4', '8', '16', '32']
-    df.to_csv('./log/BatchSizeEOR.csv')
+    df.to_csv(result_csv_log+'BatchSizeEOR.csv')
     df = pd.DataFrame(CBR)
     df.index = single_workloads
     df.columns = ['2', '4', '8', '16', '32']
-    df.to_csv('./log/BatchSizeCBR.csv')
+    df.to_csv(result_csv_log+'BatchSizeCBR.csv')

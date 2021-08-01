@@ -49,6 +49,7 @@ python pycode/tinyflow/MainExperiments.py
 python pycode/tinyflow/VariousMultiDynamicWorkloadsExperiments.py
 ```
 # Run the experiments of vDNN and Capuchin
+Back up the results of TENSILE first.
 Check out to the baselines branch first, and re-compile first, then manually change the budget in lab1.py and lab3.py to the results of your TENSILE experiment. 
 ```shell
 # re-compile
@@ -59,3 +60,14 @@ python tests/Experiment/lab1.py
 # for various multiple dynamic workloads experiments
 python tests/Experiment/lab3.py
 ```
+
+# Get results
+1. Back up the results of baselines.
+2. Check out back to the TENSILE branch.
+3. Change the `baseline_path` and `TENSILE_path` in `MakeCSV.py` to the path where you put your experiment results.
+4. Change the `csv_path` in `Draw.py` to the path where you put your csv, this is set in MakeCSV.py.
+5. Run the result analysis process.
+```shell
+python pycode/tinyflow/Draw.py
+```
+6. Check the picture and csv file in `csv_path`
