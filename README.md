@@ -58,7 +58,7 @@ make
 # for single workload and multiple dynamic workloads experiments
 python tests/Experiment/lab1.py
 # for various multiple dynamic workloads experiments
-python tests/Experiment/lab3.py
+python tests/Experiment/lab2.py
 ```
 
 # Get results
