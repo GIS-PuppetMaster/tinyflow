@@ -41,7 +41,7 @@ make install
 ```
 
 # Run the experiments of TENSILE
-After compiling the GPU library, we can check out to the TENSILE branch and run the experiments of TENSILE
+After compiling the GPU library, we can check out to the TENSILE branch(or the master branch, they are the same) and run the experiments of TENSILE
 1. Check out to the TENSILE branch
 2. Download the `res.tar` from `链接：https://pan.baidu.com/s/1riFDtnNut1_kQDkownfXtg 
 提取码：rvxo` and unzip it to the project directory. the `res` folder should be at the same level with `pycode`
@@ -66,7 +66,7 @@ python tests/Experiment/lab2.py
 
 # Get results
 1. Back up the results of baselines.
-2. Check out back to the TENSILE branch.
+2. Check out back to the TENSILE branch(or the master branch, they are the same).
 3. Change the `baseline_path` and `TENSILE_path` in `MakeCSV.py` to the path where you put your experiment results.
 4. Change the `csv_path` in `Draw.py` to the path where you put your csv, this is set in MakeCSV.py.
 5. Run the result analysis process.
