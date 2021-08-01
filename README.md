@@ -42,6 +42,9 @@ make install
 
 # Run the experiments of TENSILE
 After compiling the GPU library, we can check out to the TENSILE branch and run the experiments of TENSILE
+1. Check out to the TENSILE branch
+2. Download the `res.tar` from `链接：https://pan.baidu.com/s/1riFDtnNut1_kQDkownfXtg 
+提取码：rvxo` and unzip it to the project directory. the `res` folder should be at the same level with `pycode`
 ```shell
 # for single workload and multiple dynamic workloads experiments
 python pycode/tinyflow/MainExperiments.py
