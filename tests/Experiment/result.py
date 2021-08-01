@@ -2,7 +2,7 @@ import datetime
 import numpy as np
 
 
-def get_result(path, repeat_times, net_order=0, need_tosave=None, skip=None):
+def get_result(path, repeat_times, net_order=0, skip=None):
     all_vanilla_max_memory = []
     all_vanilla_time = []
 
@@ -70,9 +70,6 @@ def get_result(path, repeat_times, net_order=0, need_tosave=None, skip=None):
                         max_memory = memory
                 except:
                     pass
-            # 删除need_tosave里面设置的额外矩阵所占用的空间
-            if need_tosave is not None and len(need_tosave) > 0:
-                max_memory -= need_tosave[re_t]
             all_capuchin_max_memory.append(max_memory)
             with open(f'{path}type1_repeat_time={re_t}_net_order={net_order}_record_3.txt', 'r') as f:
                 lines = f.readlines()

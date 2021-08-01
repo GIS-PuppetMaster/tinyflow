@@ -100,7 +100,6 @@ def Experiment1():
                 # net_id = random.randint(0, 4) #net_id随机选取网络种类 0:vgg16, 1:inceptionv3, 2:inceptionv4, 3:resNet, 4:denseNet
                 nets.append(net_id)
             print("选取的网络", list(map(lambda x: net_names[x], nets)))
-            need_tosave_list = []
             for t in range(repeat_times):
                 print(f'repeat_times:{t}')
                 for type in range(3):  # type是调度方式的选择, 0.不调度 1.capuchin 2.vdnn
@@ -116,7 +115,7 @@ def Experiment1():
                         job.start()
                     for job in job_pool:
                         job.join()
-            get_result(path, repeat_times=repeat_times, need_tosave=need_tosave_list)
+            get_result(path, repeat_times=repeat_times)
             print("Experiment1 finish")
 
 

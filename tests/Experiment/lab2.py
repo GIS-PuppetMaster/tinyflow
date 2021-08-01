@@ -16,7 +16,7 @@ gpu = 0
 methods = ['vanilla', 'capuchin', 'vdnn']
 
 
-def get_result(log_path, repeat_times, log, need_tosave_list=None):
+def get_result(log_path, repeat_times, log):
     res = open(f'{log_path}/res.txt', 'w+')
     all_vanilla_max_memory = []
     all_vanilla_time = []
@@ -37,8 +37,6 @@ def get_result(log_path, repeat_times, log, need_tosave_list=None):
         all_vanilla_max_memory.append(vanilla_max_gpu_memory)
         all_vanilla_time.append(vanilla_average_time_cost)
         capuchin_max_gpu_memory, capuchin_average_time_cost = log[methods[1]][t]
-        if need_tosave_list is not None and len(need_tosave_list) > 0:
-            capuchin_max_gpu_memory -= need_tosave_list[t]
         all_capuchin_max_memory.append(capuchin_max_gpu_memory)
         all_capuchin_time.append(capuchin_average_time_cost)
         all_capuchin_MSR.append(1 - capuchin_max_gpu_memory / vanilla_max_gpu_memory)
@@ -157,7 +155,6 @@ def Experiment3():
         os.makedirs(log_path)
     f1 = open(f"{log_path}/log.pkl", "wb")
     # res = open(f'{log_path}/res.txt', 'w+')
-    need_tosave_list = []
     for t in range(repeat_times):
         print(f'repeat_times:{t}')
         nets = [0, 1, 2, 3, 4]
@@ -196,7 +193,7 @@ def Experiment3():
                 pkl.dump(log, f1)
             if type == 0:
                 vanilla_max_memory = recorder.max_gpu_memory
-    get_result(log_path, repeat_times, log, need_tosave_list)
+    get_result(log_path, repeat_times, log)
     print("Experiment3 finish")
     file.close()
 
