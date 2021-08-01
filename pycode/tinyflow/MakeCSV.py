@@ -15,13 +15,14 @@ multi_workloads = ['VGG x1', 'VGG x2', 'VGG x3', 'VGG MDW',
                    'Inception V4 x1', 'Inception V4 x2', 'Inception V4 x3', 'Inception V4 MDW',
                    'ResNet x1', 'ResNet x2', 'ResNet x3', 'ResNet MDW',
                    'DenseNet x1', 'DenseNet x2', 'DenseNet x3', 'DenseNet MDW']
+TENSILE_path = 'D:\PycharmProjects\TENSILE实验数据/TENSILE/log/'
 # todo: MDW
 baseline_multi_workloads = ['VGG x1', 'VGG x2', 'VGG x3',
                             'InceptionV3 x1', 'InceptionV3 x2', 'InceptionV3 x3',
                             'InceptionV4 x1', 'InceptionV4 x2', 'InceptionV4 x3',
                             'ResNet x1', 'ResNet x2', 'ResNet x3',
                             'DenseNet x1', 'DenseNet x2', 'DenseNet x3']
-baseline_path = '../../../baseline/tests/Experiment/log/'
+baseline_path = 'D:\PycharmProjects\TENSILE实验数据/baseline/log/'
 batch_size_workloads = ['VGG x1', 'VGG bs4', 'VGG bs8', 'VGG', 'VGG bs32',
                         'Inception V3 x1', 'Inception V3 bs4', 'Inception V3 bs8', 'Inception V3', 'Inception V3 bs32',
                         'Inception V4 x1', 'Inception V4 bs4', 'Inception V4 bs8', 'Inception V4',
@@ -62,7 +63,7 @@ def make_csv():
     # single_workloads
     data = np.zeros((5, 4))
     for file in single_workloads:
-        path = './log/' + file
+        path = TENSILE_path + file
         path = os.path.join(path, 'repeat_3_result.txt')
         with open(path, 'r') as f:
             lines = f.readlines()
@@ -102,7 +103,7 @@ def make_csv():
 
     # TENSILE
     for file in multi_workloads:
-        path = './log/' + file
+        path = TENSILE_path + file
         if 'MDW' in file:
             # path = os.path.join(file, 'repeat_10_result.txt')
             continue
@@ -236,7 +237,7 @@ def make_csv():
     CBR[2, 4] = None
     CBR[4, 4] = None
     for file in batch_size_workloads:
-        path = './log/' + file
+        path = TENSILE_path + file
         path = os.path.join(path, 'repeat_3_result.txt')
         with open(path, 'r') as f:
             lines = f.readlines()
