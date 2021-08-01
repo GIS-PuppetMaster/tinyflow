@@ -1,21 +1,25 @@
+# We implemented vDNN, Capuchin and TENSILE on the modified Tinyflow for fair comparison.
 Tinyflow is a simple deep learning framework for learning purposes. It supports automatic 
-differentiation and GPU acceleration. TinyFlow currently provides all the operators needed 
-to build a multilayer perceptron models (MLP).
+differentiation and GPU acceleration. The modified TinyFlow currently provides all the operators needed 
+to build a multilayer perceptron models (MLP), and a convolution network.
 
 If you want to learn more about the principles behind Tinyflow, the following two blog posts may provide a lot of intuition.
 + [Automatic Differentiation Based on Computation Graph](https://lb-yu.github.io/2019/07/22/Automatic-Differentiation-Based-on-Computation-Graph/)
 + [Tinyflow - A Simple Neural Network Framework](https://lb-yu.github.io/2019/07/23/Tinyflow-A-Simple-Neural-Network-Framework/)
 
+
 # Install
 Tinyflow currently only supports running in 64-bit linux environment. Requirement:
-+ gcc >= 4.8;
++ Ubuntu 18.04
++ gcc >= 4.8 (We used gcc 7.5);
 + cmake >= 3.13 (if you choose to use cmake);
-+ CUDA 9.0
++ CUDA 10.0
++ cudnn 7.6.5
 + python 3
 
 Download the source code.
 ```shell
-git clone https://github.com/LB-Yu/tinyflow.git
+git clone https://github.com/GIS-PuppetMaster/tinyflow.git
 ```
 
 Generally speaking, CUDA will be installed in `/use/local/cuda`. 
@@ -25,42 +29,45 @@ fourth line of CMakeLists.txt to your installation path.
 
 For compiling with Makefile.
 ```shell
-cd tinyflow
 make
 ```
 
 For compiling with CMake.
 ```shell
-cd tinyflow
 mkdir build
 cmake ..
 make
 make install
 ```
 
-# Run the MNIST Example
-After compiling the GPU library, we can train an MLP on the MNIST dataset.
+# Run the experiments of TENSILE
+After compiling the GPU library, we can check out to the TENSILE branch and run the experiments of TENSILE
 ```shell
-export PYTHONPATH="/path/to/tinyflow/python:${PYTHONPATH}"
-
-# see cmd options with 
-# python tests/mnist_dlsys.py -h
-
-# run logistic regression on numpy
-python tests/mnist_dlsys.py -l -m logreg -c numpy
-# run logistic regression on gpu
-python tests/mnist_dlsys.py -l -m logreg -c gpu
-# run MLP on numpy
-python tests/mnist_dlsys.py -l -m mlp -c numpy
-# run MLP on gpu
-python tests/mnist_dlsys.py -l -m mlp -c gpu
+# for single workload and multiple dynamic workloads experiments
+python pycode/tinyflow/MainExperiments.py
+# for various multiple dynamic workloads experiments
+python pycode/tinyflow/VariousMultiDynamicWorkloadsExperiments.py
+```
+# Run the experiments of vDNN and Capuchin
+Back up the results of TENSILE first.
+Check out to the baselines branch first, and re-compile first, then manually change the budget in lab1.py and lab3.py to the results of your TENSILE experiment. 
+```shell
+# re-compile
+rm -rf build
+make
+# for single workload and multiple dynamic workloads experiments
+python tests/Experiment/lab1.py
+# for various multiple dynamic workloads experiments
+python tests/Experiment/lab2.py
 ```
 
-# Overview of Module
-- python/dlsys/autodiff.py: Implements computation graph, autodiff, GPU/Numpy Executor.
-- python/dlsys/gpu_op.py: Exposes Python function to call GPU kernels via ctypes.
-- python/dlsys/ndarray.py: Exposes Python GPU array API.
-
-- src/dlarray.h: header for GPU array.
-- src/c_runtime_api.h: C API header for GPU array and GPU kernels.
-- src/gpu_op.cu: cuda implementation of kernels
+# Get results
+1. Back up the results of baselines.
+2. Check out back to the TENSILE branch.
+3. Change the `baseline_path` and `TENSILE_path` in `MakeCSV.py` to the path where you put your experiment results.
+4. Change the `csv_path` in `Draw.py` to the path where you put your csv, this is set in MakeCSV.py.
+5. Run the result analysis process.
+```shell
+python pycode/tinyflow/Draw.py
+```
+6. Check the picture and csv file in `csv_path`
