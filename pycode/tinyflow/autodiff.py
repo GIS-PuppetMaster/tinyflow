@@ -2315,6 +2315,18 @@ class Executor(object):
         self.total_node = len(self.topo_order)
         self.f = open(f"{log_path}/hit_rate.txt", 'w')
 
+        # add gpu memory record for three type of tensors
+        self.f2 = open(f"{log_path}/gpu_mem_record.txt", "w+")
+        # list element type: Node
+        self.para_list = []
+        self.inter_list = []
+        self.opti_list = []
+        self.inout_list = []
+
+    def __del__(self):
+        self.f2.close()
+
+
     def infer_shape(self, feed_shapes):
         """Given shapes of feed_dict nodes, infer shape for all nodes in graph.
 
@@ -2465,6 +2477,18 @@ class Executor(object):
         if self.feed_shapes is None:
             self.infer_shape(feed_shapes)
             self.feed_shapes = feed_shapes
+
+            for node in self.topo_order:
+                if node.index in index_to_gpu_map:
+                    if node.name == 'X' or node.name == "y_":
+                        self.inout_list.append(node)
+                    elif node.name[-1] == 'm' or node.name[-1] == 'v':
+                        self.opti_list.append(node)
+                    else:
+                        self.para_list.append(node)
+                else:
+                    self.inter_list.append(node)
+
 
             # 在此处开cpu上的空间
             for node in self.node_to_shape_map:
@@ -2834,11 +2858,36 @@ class Executor(object):
                 index_to_gpu_map[release_message] = None
                 self.topo_order[release_message].array_status = 0
 
+
             # print(node.index, " : ", index_to_gpu_map[node.index].asnumpy())
 
             # # todo 用于测试
             # print("node: " + str(node.index) + "computing")
             # print(index_to_gpu_map[0].asnumpy())
+            # todo add gpu mem logger here 2021
+            self.f2.write("time" + str(datetime.datetime.now()))
+            factor = 1024 * 1024 / 4
+
+            sum_inout = 0.0
+            for node_cur in self.inout_list:
+                if index_to_gpu_map.get(node_cur.index) or index_to_gpu_map.get(node_cur.index + self.total_node):
+                    sum_inout += np.prod(self.node_to_shape_map[node_cur]) / factor
+            sum_para = 0.0
+            for node_cur in self.para_list:
+                if index_to_gpu_map.get(node_cur.index) or index_to_gpu_map.get(node_cur.index + self.total_node):
+                    sum_para += np.prod(self.node_to_shape_map[node_cur]) / factor
+            sum_opti = 0.0
+            for node_cur in self.opti_list:
+                if index_to_gpu_map.get(node_cur.index) or index_to_gpu_map.get(node_cur.index + self.total_node):
+                    sum_opti += np.prod(self.node_to_shape_map[node_cur]) / factor
+            sum_inter = 0.0
+            for node_cur in self.inter_list:
+                if index_to_gpu_map.get(node_cur.index) or index_to_gpu_map.get(node_cur.index + self.total_node):
+                    sum_inter += np.prod(self.node_to_shape_map[node_cur]) / factor
+            self.f2.write("   parameter: " + str(sum_para))
+            self.f2.write("   intermediate:" + str(sum_inter))
+            self.f2.write("   inputAndOutput" + str(sum_inout))
+            self.f2.write("   optimizer" + str(sum_opti) + "\n")
 
         # adam更新参数
         self.b1t[0] = self.b1t[0] * self.b1
