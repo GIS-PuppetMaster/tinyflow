@@ -4,6 +4,8 @@ from __future__ import absolute_import
 import sys
 import threading
 import time
+
+import json
 import numpy as np
 from . import ndarray, gpu_op
 import random
@@ -2865,7 +2867,6 @@ class Executor(object):
             # print("node: " + str(node.index) + "computing")
             # print(index_to_gpu_map[0].asnumpy())
             # todo add gpu mem logger here 2021
-            self.f2.write("time" + str(datetime.datetime.now()))
             factor = 1024 * 1024 / 4
 
             sum_inout = 0.0
@@ -2884,10 +2885,12 @@ class Executor(object):
             for node_cur in self.inter_list:
                 if index_to_gpu_map.get(node_cur.index) or index_to_gpu_map.get(node_cur.index + self.total_node):
                     sum_inter += np.prod(self.node_to_shape_map[node_cur]) / factor
-            self.f2.write("   parameter: " + str(sum_para))
-            self.f2.write("   intermediate:" + str(sum_inter))
-            self.f2.write("   inputAndOutput" + str(sum_inout))
-            self.f2.write("   optimizer" + str(sum_opti) + "\n")
+
+            record_tensor = {"parameter": sum_para, "intermediate": sum_inter, "inputAndOutput": sum_inout,
+                             "optimizer": sum_opti}
+            self.f2.write(str(datetime.datetime.now().timestamp()) + " ")
+            self.f2.write(json.dumps(record_tensor))
+            self.f2.write("\n")
 
         # adam更新参数
         self.b1t[0] = self.b1t[0] * self.b1
