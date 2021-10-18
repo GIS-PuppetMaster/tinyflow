@@ -28,7 +28,7 @@ def run_model(raw_log_path, model: list, top_control_queue_list, top_message_que
         top_message_queue = multiprocessing.Queue()
         top_message_queue_list.append(top_message_queue)
         path_list = raw_log_path.split('/')
-        path_list[2] = m.__class__.__name__ + ' ' + path_list[2]
+        path_list[2] = m.__name__ + ' ' + path_list[2]
         log_path = '/'.join(path_list)
         if not os.path.exists(log_path):
             os.makedirs(log_path)
