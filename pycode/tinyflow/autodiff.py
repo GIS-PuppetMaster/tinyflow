@@ -38,7 +38,7 @@ class MemoryManagerController(threading.Thread):
         self.cpu_ctx = ndarray.cpu(0)
         self.gpu_ctx = ndarray.gpu(0)
         self.memoryManager = MemoryManager(self.will_do_queue, self.have_done_queue)
-        # self.memoryManager.setDaemon(True)
+        self.memoryManager.setDaemon(True)
         self.memoryManager.start()
 
     def run(self):
@@ -2295,7 +2295,7 @@ class Executor(object):
         self.will_do_queue = queue.Queue()
         self.memoryManagerController = MemoryManagerController(self.control_queue, self.will_do_queue,
                                                                self.have_done_queue)
-        # self.memoryManagerController.setDaemon(True)
+        self.memoryManagerController.setDaemon(True)
         self.memoryManagerController.start()
 
         self.cudaStream = gpu_op.create_cudaStream()

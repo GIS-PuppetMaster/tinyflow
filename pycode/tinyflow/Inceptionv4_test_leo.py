@@ -547,8 +547,8 @@ class Inceptionv4():
             self.top_control_queue.get()
         self.top_message_queue.close()
         self.top_control_queue.close()
-        self.top_control_queue.join_thread()
-        self.top_message_queue.join_thread()
+        # self.top_control_queue.join_thread()
+        # self.top_message_queue.join_thread()
         return 0
 
     # def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, **kwargs):

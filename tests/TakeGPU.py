@@ -50,7 +50,7 @@ while True:
             release = json.load(f)
     except Exception as e:
         release = []
-    for i in range(8):
+    for i in range(16):
         handle = nvmlDeviceGetHandleByIndex(i)
         flag = []
         for _ in range(5):

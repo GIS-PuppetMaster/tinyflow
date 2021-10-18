@@ -5,14 +5,21 @@ import numpy as np
 import os
 from keras import Model, models
 from keras.callbacks import EarlyStopping, ModelCheckpoint
-
+import tensorflow as tf
 from keras.models import Sequential, load_model
 from keras.layers import Dense, Conv1D, MaxPool1D, Dropout, Flatten
 from matplotlib import cm
 from tensorboard.plugins.hparams import keras
 import numpy as np
-
+from keras import backend as K
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
+config = tf.ConfigProto(allow_soft_placement=True,
+                        device_count={'CPU': 1,
+                                      'GPU': 0}
+                        )
+
+session = tf.Session(config=config)
+K.set_session(session)
 # 第几块gpu
 inited = False
 handle = None
