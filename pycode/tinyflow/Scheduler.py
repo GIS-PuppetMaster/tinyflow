@@ -956,8 +956,8 @@ def multiprocess_init(global_message_queue: multiprocessing.Queue, global_contro
                 global_graphs.append(message_graph)
                 tensor_num = len(message_graph)
 
-                # with open("../../global_graphs", "wb") as f1:
-                #     pickle.dump(global_graphs, f1)
+                with open("../../global_graphs", "wb") as f1:
+                    pickle.dump(global_graphs, f1)
 
                 for i in range(tensor_num):
                     # print(message_graph[i][6])

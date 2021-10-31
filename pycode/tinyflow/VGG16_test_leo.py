@@ -1,6 +1,6 @@
 import os
 
-GPU = 0
+GPU = 13
 os.environ['CUDA_VISIBLE_DEVICES'] = f'{GPU}'
 import sys
 

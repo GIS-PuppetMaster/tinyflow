@@ -15,7 +15,7 @@ def train(i):
     model.fit(image,labels,epochs=100000)
 
 pool = []
-gpu = [2,4,6]
+gpu = [2,4,6,10,12,14,16]
 for i in gpu:
     pool.append(Process(target=train, args=(i,)))
     pool[-1].start()
