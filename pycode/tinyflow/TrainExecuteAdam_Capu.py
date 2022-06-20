@@ -648,6 +648,7 @@ class TrainExecutor(object):
     def arrive_to_cpu(self, n):
         while index_to_cpu_flag[n.index]!=True:
             continue
+        print('arrive_to_cpu')
 
     def tensor_evict(self, access_node):
         self.will_do_queue.put((access_node.index, 0))

@@ -79,11 +79,11 @@ def create_extra_matrix(need_tosave, pipe1, pipe2):
 
 
 def Experiment1():
-    for net_id in range(5):
-        repeat_times = 3
+    for net_id in range(1):
+        repeat_times = 1
         print("Experiment1 start")
         net_name = net_names[net_id]
-        for i, num_net in enumerate([1, 1, 2, 3]):
+        for i, num_net in enumerate([1]):
             if i == 0:
                 batch_size = 16
                 net_name_ = net_name
@@ -102,7 +102,7 @@ def Experiment1():
             print("选取的网络", list(map(lambda x: net_names[x], nets)))
             for t in range(repeat_times):
                 print(f'repeat_times:{t}')
-                for type in range(3):  # type是调度方式的选择, 0.不调度 1.capuchin 2.vdnn
+                for type in range(2):  # type是调度方式的选择, 0.不调度 1.capuchin 2.vdnn
                     bud = 0
                     if type == 1:
                         bud = budget[net_name][batch_size]
