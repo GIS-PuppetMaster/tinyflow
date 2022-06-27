@@ -32,6 +32,7 @@ class Node(object):
         self.const_attr = None
         self.name = ""
         self.index = 0
+        # array_status 0 - cpu 1 -gpu 2 - free
         self.array_status = -1
         # todo array_status 0 - cpu ,  1 - gpu , 2 - trans from cpu to gpu, 3 - trans from gpu to cpu,4 - free
         # 是不是参数
@@ -59,7 +60,9 @@ class Node(object):
         self.FT = []
         self.swapouttime = 0
         self.swapintime = 0
-        self.peekaccess = []
+        self.post_swap_in_times = 0
+        self.peakaccess = []
+        self.accesses = []
 
     def __add__(self, other):
         """Adding two nodes return a new node."""

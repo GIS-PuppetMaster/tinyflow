@@ -11,5 +11,5 @@ tensorboard==2.4.1
 plotly==4.14.3
 matplotlib==2.1.1
 scipy==1.5.4
-pynvml==11.0.0
+pynvml==8.0.4
 tensorpack==0.11
