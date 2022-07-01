@@ -564,6 +564,75 @@ TINYFLOW_EXTERN_C {
   int getInt(int *intp);
   int testPcie(int *in,int *out);
   int SetCudaMemoryLimit(size_t size);
+
+
+  int DLGpuLstmGetinputd(const int* input_shapes,
+      const int* filter_shapes,
+      const int hiddenSize,
+      const int numLayers,
+      int* output_shapes,
+      void*** inputd);
+
+
+  int DLGpuLstmGetwlen(const int* input_shapes,
+      const int hiddenSize,
+      const int numLayers,
+      const int seqLength,
+      const float dropout,
+      const int seed,
+      int* wlen);
+
+
+  int DLGpuLstmForward(const DLArrayHandle input,
+      const DLArrayHandle filter,
+      DLArrayHandle output,
+      const int hiddenSize,
+      const int numLayers,
+      const int seqLength,
+      const float dropout,
+      const int seed,
+      void*** inputd,
+      void*** cudnnlist,
+      void** cudnnHandle, int* memorytoSaving, void** cudaStream, long long computespace);
+
+  int DLGpuLstmBackwardData(const DLArrayHandle y,
+      const DLArrayHandle dy,
+      const DLArrayHandle w,
+      DLArrayHandle dx,
+      const int seqLength,
+      void*** inputd,
+      void*** cudnnlist,
+      void** cudnnHandle, int* memorytoSaving, void** cudaStream, long long computespace);
+
+  int DLGpuLstmBackwardWeights(const DLArrayHandle x,
+      const DLArrayHandle y,
+      DLArrayHandle dw,
+      const int seqLength,
+      void*** inputd,
+      void*** cudnnlist,
+      void** cudnnHandle, int* memorytoSaving, void** cudaStream, long long computespace);
+
+  int DLGJoinGetinputArrsData(void*** inputArrs, const int number);
+
+  int DLGJoinSetinputArrsData(void*** inputArrs, DLArrayHandle inputArr, const int number);
+
+  int DLGpuJoinForward(void*** inputArrs,
+      DLArrayHandle outputArr,
+      const int number,
+      const int onecount,
+      const int count,
+      int* memorytoSaving, void** cudaStream, long long computespace);
+
+  int DLGpuJoinBackward(DLArrayHandle inputArr,
+      const DLArrayHandle outputArr,
+      const int number,
+      const int onecount,
+      void** cudaStream);
+
+  int DLGpuSwap(const DLArrayHandle inputArr,
+      DLArrayHandle outputArr,
+      const int x, const int y, const int z,
+      void** cudaStream);
 //  int DLGpuSgdUpdate(DLArrayHandle* output,
 //                    const DLArrayHandle* m,
 //                    const int* shape_prefix,

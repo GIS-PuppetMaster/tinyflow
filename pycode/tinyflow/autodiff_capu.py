@@ -28,6 +28,7 @@ class Node(object):
             self.name: node name for debugging.
         """
         self.inputs = []
+        self.nodes_use_self_as_input = set()
         self.op = None
         self.const_attr = None
         self.name = ""
@@ -2721,11 +2722,14 @@ def maxusetocompute():
     handle = pynvml.nvmlDeviceGetHandleByIndex(0)
     info_list = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)
     gpu_memory_used = 0
+    all_memory = pynvml.nvmlDeviceGetMemoryInfo(handle).total
     for info_i in info_list:
         if info_i.pid == os.getpid():  # 如果与需要记录的pid一致
             gpu_memory_used += info_i.usedGpuMemory
     pynvml.nvmlShutdown()  # 最后关闭管理工具
-    if (int(mymaxmem-gpu_memory_used))>0:
+    if mymaxmem>0 and (int(mymaxmem-gpu_memory_used))>0:
         return int(mymaxmem-gpu_memory_used)
+    elif mymaxmem<=0:
+        return all_memory
     else:
         return 0

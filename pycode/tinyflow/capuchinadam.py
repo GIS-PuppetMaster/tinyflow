@@ -59,7 +59,7 @@ class capuchin:
         self.prior_policy = [0] * len(self.tensor_access_list)
         self.prior_policy_in = [0] * len(self.tensor_access_list)
         self.swap = [-1] * len(self.tensor_access_list)
-        self.memory_tosaving = memory_tosaving
+        self.memory_tosaving = memory_tosaving*2
         self.end_time = end_time
 
         def identifyAndSortCandidates():
@@ -130,10 +130,10 @@ class capuchin:
 
             # 布置策略
             for i in range(out_start, out_end+1):
-                if self.swap[i]!=-1 or self.policy[i]!=0:
+                if self.swap[i]!=-1 or (i == out_start and self.policy[i]!=0):
                     return False
             for i in range(in_start, in_end):
-                if self.swap[i]!=-1 or self.policy[i]!=0:
+                if self.swap[i]!=-1 or (i==in_start and self.policy[i]!=0):
                     return False
             if self.policy_in[in_start]!=0:
                 return False
@@ -142,13 +142,13 @@ class capuchin:
             self.policy[out_start] = 1
             self.swap[out_start] = t
 
-            for i in range(out_start + 1, out_end + 1):
-                self.policy[i] = 3
+            # for i in range(out_start + 1, out_end + 1):
+            #     self.policy[i] = 3
 
             self.policy[in_start] = 2
             self.swap[in_start] = t
-            for i in range(in_start + 1, in_end):
-                self.policy[i] = 4
+            # for i in range(in_start + 1, in_end):
+            #     self.policy[i] = 4
             self.policy_in[in_end] = 5
             if self.tensor_access_list[in_end][0] != t:
                 print("in问题")
@@ -207,6 +207,12 @@ class capuchin:
                     if cand.rp_time != 0:
                         cand.MSPS = cand.memory / cand.rp_time
 
+        def check_whether_used_by_rep_as_input(index):
+            for rp in self.recomps:
+                if rp in self.topo_order[index].nodes_use_self_as_input:
+                    return True
+            return False
+
         identifyAndSortCandidates()
         Candidates = list(self.candidates)
         for t in Candidates:
@@ -232,11 +238,27 @@ class capuchin:
                     self.candidates.remove((t[0], self.topo_order[t[0]].FT[t[2]], t[2]))
 
                 # and re_id != -1
-                elif self.prior_policy[self.topo_order[re_id].use_access_id[ti]] == 0 and re_id != -1:
+                elif self.prior_policy[self.topo_order[re_id].use_access_id[ti]] == 0 and re_id != -1 and ti != len(self.topo_order[re_id].FT) - 1:
+                    def get_all_inputs(node, inputs, using_nodes):
+                        using_nodes.add(node)
+                        inputs = inputs + node.inputs
+                        for ipt in node.inputs:
+                            ipt.nodes_use_self_as_input.update(using_nodes)
+                            get_all_inputs(ipt, inputs, using_nodes)
+                        using_nodes.remove(node)
+                    rep_inputs = []
+                    using_nodes = set()
+                    get_all_inputs(self.topo_order[re_id], rep_inputs, using_nodes)
+                    flag = False
+                    for ipt in rep_inputs:
+                        if ipt in self.swap:
+                            flag = True
+                            break
+                    if flag:
+                        continue
                     # 布置策略
                     self.prior_policy[self.topo_order[re_id].use_access_id[ti]] = 3
-                    if ti != len(self.topo_order[re_id].FT) - 1:
-                        self.prior_policy_in[self.topo_order[re_id].use_access_id[ti + 1]] = 4
+                    self.prior_policy_in[self.topo_order[re_id].use_access_id[ti + 1]] = 4
                     recomputation_policy(re_id, ti)
 
                 if self.memory_tosaving <= 0:

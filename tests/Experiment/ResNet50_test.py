@@ -32,9 +32,12 @@ class ResNet50(Process):
         self.f7 = open(self.path + 'type' + str(type) + file_name + '_record_7.txt', 'w')
 
         self.type = type
+        self.schedule = True
         if type == 0:
-            self.autodiff_name = "autodiff.py"
-            self.TrainExecute_name = "TrainExecuteAdam.py"
+            self.autodiff_name = "autodiff_capu.py"
+            self.TrainExecute_name = "TrainExecuteAdam_Capu.py"
+            self.schedule = False
+            self.is_capu = True
         elif type == 1:
             self.autodiff_name = "autodiff_capu.py"
             self.TrainExecute_name = "TrainExecuteAdam_Capu.py"
@@ -43,8 +46,9 @@ class ResNet50(Process):
             self.autodiff_name = "autodiff_vdnn.py"
             self.TrainExecute_name = "TrainExecuteAdam_vDNNconv.py"
         elif type == 3:
-            self.autodiff_name = "autodiff.py"
-            self.TrainExecute_name = "TrainExecuteAdam.py"
+            self.autodiff_name = "autodiff_vdnn.py"
+            self.TrainExecute_name = "TrainExecuteAdam_vDNNconv.py"
+            self.schedule = False
         self.ad = imp.load_source(self.autodiff_name, tinyflow_path + self.autodiff_name)
         self.TrainExecute = imp.load_source(self.autodiff_name, tinyflow_path + self.TrainExecute_name)
 
@@ -200,11 +204,12 @@ class ResNet50(Process):
         feed_dict.update(dict5_2)
 
         aph = 0.001
-        if self.is_capu == True and self.budget != None:
-            self.ad.setmaxmem(self.budget)
-            t = self.TrainExecute.TrainExecutor(loss, aph, maxmem=self.budget)
+        if self.is_capu == True:
+            budget = -1 if not self.schedule else self.budget
+            self.ad.setmaxmem(budget)
+            t = self.TrainExecute.TrainExecutor(loss, aph, maxmem=budget, schedule=self.schedule)
         else:
-            t = self.TrainExecute.TrainExecutor(loss, aph)
+            t = self.TrainExecute.TrainExecutor(loss, aph, schedule=self.schedule)
         t.init_Variable(feed_dict)
         start_time = datetime.datetime.now()
         for i in range(num_step):

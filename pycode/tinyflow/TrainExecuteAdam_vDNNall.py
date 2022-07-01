@@ -64,8 +64,8 @@ class TrainExecutor(object):
     """Executor computes values for given set of nodes in computation graph."""
 
 
-    def __init__(self, targetloss, learning_rate=0.001, ctx=ndarray.gpu(0)):
-
+    def __init__(self, targetloss, learning_rate=0.001, ctx=ndarray.gpu(0), schedule=True):
+        self.schedule = schedule
         self.b1 = 0.9
         self.b2 = 0.999
         self.e = 0.00000001
@@ -219,7 +219,7 @@ class TrainExecutor(object):
         global index_to_gpu_map
         global index_to_cpu_map
         global index_to_cpu_flag
-
+        schedule = self.schedule
 
         if self.isfirstrun == 0:
 
@@ -291,17 +291,18 @@ class TrainExecutor(object):
                     index_to_gpu_map[i] = None
 
                 # 预取最近的层的输入
-                prefeth_node_index = self.find_prefetch_layer(i)
-                if prefeth_node_index != -1:
-                    prefeth_node = self.topo_order[prefeth_node_index]
-                    for node_input in prefeth_node.inputs:
-                        if node_input.array_status == 0:
-                            # print("start_prefeth", node_input.index)
-                            self.will_do_queue.put((node_input.index, 1))
-                            node_input.array_status = 1
+                if schedule:
+                    prefeth_node_index = self.find_prefetch_layer(i)
+                    if prefeth_node_index != -1:
+                        prefeth_node = self.topo_order[prefeth_node_index]
+                        for node_input in prefeth_node.inputs:
+                            if node_input.array_status == 0:
+                                # print("start_prefeth", node_input.index)
+                                self.will_do_queue.put((node_input.index, 1))
+                                node_input.array_status = 1
 
-                # swap_in, 将node从CPU取到GPU上
-                self.swap_in(node)
+                    # swap_in, 将node从CPU取到GPU上
+                    self.swap_in(node)
 
 
 
@@ -311,16 +312,16 @@ class TrainExecutor(object):
                 for input_node in node.inputs:
                     #此时要保证在gpu中
                     input_vals.append(index_to_gpu_map[input_node.index])
-
-                # swap_out, 将node从GPU取到CPU上
-                for node_input in node.inputs:
-                    node_input.refcnt = node_input.refcnt - 1
-                    if node_input.isw == 1: # 只卸载Xs,不卸载参数
-                        continue
-                    if node_input.array_status == 1 and node_input.refcnt == 0:  # on GPU，并且是最后一个被使用
-                        # print("start_swap_out", node_input.index)
-                        self.will_do_queue.put((node_input.index, 0))
-                        node_input.array_status = 0  # GPU to CPU
+                if schedule:
+                    # swap_out, 将node从GPU取到CPU上
+                    for node_input in node.inputs:
+                        node_input.refcnt = node_input.refcnt - 1
+                        if node_input.isw == 1: # 只卸载Xs,不卸载参数
+                            continue
+                        if node_input.array_status == 1 and node_input.refcnt == 0:  # on GPU，并且是最后一个被使用
+                            # print("start_swap_out", node_input.index)
+                            self.will_do_queue.put((node_input.index, 0))
+                            # node_input.array_status = 0  # GPU to CPU
 
                 #除了SgdOp，其他的点此时要保证在gpu中
                 node_val = index_to_gpu_map[i]
@@ -332,13 +333,14 @@ class TrainExecutor(object):
                     print("显存超限")
                     assert 0
 
-                # 同步
-                for node_input in node.inputs:
-                    if node_input.isw == 1: # 只卸载Xs,不卸载参数
-                        continue
-                    if node_input.refcnt == 0:
-                        while(index_to_cpu_flag[node_input.index] == False):
+                if schedule:
+                    # 同步
+                    for node_input in node.inputs:
+                        if node_input.isw == 1: # 只卸载Xs,不卸载参数
                             continue
+                        if node_input.refcnt == 0:
+                            while(index_to_cpu_flag[node_input.index] == False):
+                                continue
 
             # 把非参数的node置为不存在, 清除gpu上非参数部分没用的值
             for node in self.topo_order:
@@ -383,22 +385,36 @@ class TrainExecutor(object):
                 # print(" ")
 
                 # 是feed_dict, 第二轮feed_dict只有x, y
-                if node in feed_dict.keys():
-                    # feed_dict在GPU中有空间,直接从CPU拷贝过去
-                    if index_to_gpu_map[i] is not None:
-                        index_to_gpu_map[i]._sync_copyfrom(feed_dict[node])
-                    else:
-                        # feed_dict没在GPU中,重新在GPU申请空间
+                if schedule:
+                    if node in feed_dict.keys():
+                        # feed_dict在GPU中有空间,直接从CPU拷贝过去
+                        if index_to_gpu_map[i] is not None:
+                            index_to_gpu_map[i]._sync_copyfrom(feed_dict[node])
+                        else:
+                            # feed_dict没在GPU中,重新在GPU申请空间
+                            ret = ndarray.array(feed_dict[node], ctx=self.ctx_gpu)
+                            while isinstance(ret, int):
+                                # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数
+                                print("显存超限")
+                                assert 0
+                            # 此时ret为ndarray, 放入GPU字典中
+                            index_to_gpu_map[i] = ret
+                        index_to_cpu_flag[i] = False
+                        node.array_status = 1  # on GPU
+                        continue
+                else:
+                    if node in feed_dict.keys():
                         ret = ndarray.array(feed_dict[node], ctx=self.ctx_gpu)
                         while isinstance(ret, int):
-                            # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数
-                            print("显存超限")
+                            # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
                             assert 0
-                        # 此时ret为ndarray, 放入GPU字典中
+                            # 解决了再声明内存
+                            ret = ndarray.array(feed_dict[node], ctx=self.ctx_gpu)
+                        # 此时ret为ndarray
+                        # value都存在self.node_to_arr_map
                         index_to_gpu_map[i] = ret
-                    index_to_cpu_flag[i] = False
-                    node.array_status = 1  # on GPU
-                    continue
+
+                        continue
 
                 # 如果node是变量，不用管
                 if node in self.Variable_node_list:
@@ -410,35 +426,36 @@ class TrainExecutor(object):
                 # 不是sgdop的中间点
                 if node.issgd == 0:
 
-                    # 在gpu中，可以直接拿来用，直接pass
-                    if index_to_gpu_map[i] is not None:
-                        print("not None", i, node)
-                        pass
-                    else:
-                        # 不在gpu中，生成新的empty
-                        # 申请空间
-                        ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx_gpu)
-                        while isinstance(ret, int):
-                            # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数
-                            print("显存超限")
-                            assert 0
-                        index_to_gpu_map[i] = ret
-                        index_to_cpu_flag[i] = False
-                        node.array_status = 1
+                    if schedule:
+                        # 在gpu中，可以直接拿来用，直接pass
+                        if index_to_gpu_map[i] is not None :
+                            print("not None", i, node)
+                            pass
+                        else:
+                            # 不在gpu中，生成新的empty
+                            # 申请空间
+                            ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx_gpu)
+                            while isinstance(ret, int):
+                                # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数
+                                print("显存超限")
+                                assert 0
+                            index_to_gpu_map[i] = ret
+                            index_to_cpu_flag[i] = False
+                            node.array_status = 1
 
+                if schedule:
+                    # 预取最近的层的输入
+                    prefeth_node_index = self.find_prefetch_layer(i)
+                    if prefeth_node_index != -1:
+                        prefeth_node = self.topo_order[prefeth_node_index]
+                        for node_input in prefeth_node.inputs:
+                            if node_input.array_status == 0:
+                                # print("start_prefeth", node_input.index)
+                                self.will_do_queue.put((node_input.index, 1))
+                                node_input.array_status = 1
 
-                # 预取最近的层的输入
-                prefeth_node_index = self.find_prefetch_layer(i)
-                if prefeth_node_index != -1:
-                    prefeth_node = self.topo_order[prefeth_node_index]
-                    for node_input in prefeth_node.inputs:
-                        if node_input.array_status == 0:
-                            # print("start_prefeth", node_input.index)
-                            self.will_do_queue.put((node_input.index, 1))
-                            node_input.array_status = 1
-
-                # swap_in, 将node从CPU取到GPU上
-                self.swap_in(node)
+                    # swap_in, 将node从CPU取到GPU上
+                    self.swap_in(node)
 
 
                 # 放inputs的ndarray，
@@ -447,14 +464,15 @@ class TrainExecutor(object):
                     # 此时要保证在gpu中
                     input_vals.append(index_to_gpu_map[input_node.index])
 
-                # swap_out, 将node从GPU取到CPU上
-                for node_input in node.inputs:
-                    node_input.refcnt = node_input.refcnt - 1
-                    if node_input.isw == 1:  # 只卸载Xs,不卸载参数
-                        continue
-                    if node_input.array_status == 1 and node_input.refcnt == 0:  # on GPU
-                        self.will_do_queue.put((node_input.index, 0))
-                        node_input.array_status = 0  # GPU to CPU
+                if schedule:
+                    # swap_out, 将node从GPU取到CPU上
+                    for node_input in node.inputs:
+                        node_input.refcnt = node_input.refcnt - 1
+                        if node_input.isw == 1:  # 只卸载Xs,不卸载参数
+                            continue
+                        if node_input.array_status == 1 and node_input.refcnt == 0:  # on GPU
+                            self.will_do_queue.put((node_input.index, 0))
+                            node_input.array_status = 0  # GPU to CPU
 
 
                 # 除了SgdOp，其他的点此时要保证在gpu中
@@ -466,13 +484,14 @@ class TrainExecutor(object):
                     print("显存超限")
                     assert 0
 
-                # 同步
-                for node_input in node.inputs:
-                    if node_input.isw == 1:  # 只卸载Xs,不卸载参数
-                        continue
-                    if node_input.refcnt == 0:
-                        while (index_to_cpu_flag[node_input.index] == False):
+                if schedule:
+                    # 同步
+                    for node_input in node.inputs:
+                        if node_input.isw == 1:  # 只卸载Xs,不卸载参数
                             continue
+                        if node_input.refcnt == 0:
+                            while (index_to_cpu_flag[node_input.index] == False):
+                                continue
 
 
             # 把非参数的node置为不存在, 清除gpu上非参数部分没用的值

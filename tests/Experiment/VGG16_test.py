@@ -30,9 +30,12 @@ class VGG16(Process):
         self.f6 = open(self.path + 'type' + str(type) + file_name + '_record_6.txt', 'w')
         self.f7 = open(self.path + 'type' + str(type) + file_name + '_record_7.txt', 'w')
         self.type = type
+        self.schedule = True
         if type == 0:
-            self.autodiff_name = "autodiff.py"
-            self.TrainExecute_name = "TrainExecuteAdam.py"
+            self.autodiff_name = "autodiff_capu.py"
+            self.TrainExecute_name = "TrainExecuteAdam_Capu.py"
+            self.schedule = False
+            self.is_capu=True
         elif type == 1:
             self.autodiff_name = "autodiff_capu.py"
             self.TrainExecute_name = "TrainExecuteAdam_Capu.py"
@@ -41,8 +44,9 @@ class VGG16(Process):
             self.autodiff_name = "autodiff_vdnn.py"
             self.TrainExecute_name = "TrainExecuteAdam_vDNNconv.py"
         elif type == 3:
-            self.autodiff_name = "autodiff.py"
-            self.TrainExecute_name = "TrainExecuteAdam.py"
+            self.autodiff_name = "autodiff_vdnn.py"
+            self.TrainExecute_name = "TrainExecuteAdam_vDNNconv.py"
+            self.schedule = False
         self.ad = imp.load_source(self.autodiff_name, tinyflow_path + self.autodiff_name)
         self.TrainExecute = imp.load_source(self.autodiff_name, tinyflow_path + self.TrainExecute_name)
 
@@ -163,10 +167,11 @@ class VGG16(Process):
         #     b_val[i] = ndarray.array(b_val[i], ctx)
         aph = 0.001
         if self.is_capu == True:
-            self.ad.setmaxmem(self.budget)
-            t = self.TrainExecute.TrainExecutor(self.loss, aph, maxmem=self.budget)
+            budget = -1 if not self.schedule else self.budget
+            self.ad.setmaxmem(budget)
+            t = self.TrainExecute.TrainExecutor(self.loss, aph, maxmem=budget, schedule=self.schedule)
         else:
-            t = self.TrainExecute.TrainExecutor(self.loss, aph)
+            t = self.TrainExecute.TrainExecutor(self.loss, aph, schedule=self.schedule)
         t.init_Variable(self.feed_dict)
         # print('run')
         start_time = datetime.datetime.now()

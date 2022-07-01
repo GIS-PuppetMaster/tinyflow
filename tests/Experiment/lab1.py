@@ -18,7 +18,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
 net_names = ['VGG', 'InceptionV3', 'InceptionV4', 'ResNet', 'DenseNet']
 budget = {
     'VGG': {2: 2642.0,
-            16: 4099.333333333333},
+            16: 6879.43336},
     'InceptionV3': {2: 1173.3333333333333,
                     16: 2447.3333333333335},
     'InceptionV4': {
@@ -100,21 +100,21 @@ def Experiment1():
                 # net_id = random.randint(0, 4) #net_id随机选取网络种类 0:vgg16, 1:inceptionv3, 2:inceptionv4, 3:resNet, 4:denseNet
                 nets.append(net_id)
             print("选取的网络", list(map(lambda x: net_names[x], nets)))
-            for t in range(repeat_times):
-                print(f'repeat_times:{t}')
-                for type in range(2):  # type是调度方式的选择, 0.不调度 1.capuchin 2.vdnn
-                    bud = 0
-                    if type == 1:
-                        bud = budget[net_name][batch_size]
-                    job_pool = []
-                    for i, net_id in enumerate(nets):
-                        job_pool.append(
-                            generate_job(num_step=50, net_id=net_id, type=type, batch_size=batch_size, path=path,
-                                         file_name=f"_repeat_time={t}_net_order={i}", budget=bud))
-                    for job in job_pool:
-                        job.start()
-                    for job in job_pool:
-                        job.join()
+            # for t in range(repeat_times):
+            #     print(f'repeat_times:{t}')
+            #     for type in range(2,4):  # type是调度方式的选择, 0.capuchin_不调度 1.capuchin 2.vdnn 3. vdnn_不调度
+            #         bud = 0
+            #         if type == 1:
+            #             bud = budget[net_name][batch_size]
+            #         job_pool = []
+            #         for i, net_id in enumerate(nets):
+            #             job_pool.append(
+            #                 generate_job(num_step=50, net_id=net_id, type=type, batch_size=batch_size, path=path,
+            #                              file_name=f"_repeat_time={t}_net_order={i}", budget=bud))
+            #         for job in job_pool:
+            #             job.start()
+            #         for job in job_pool:
+            #             job.join()
             get_result(path, repeat_times=repeat_times)
             print("Experiment1 finish")
 

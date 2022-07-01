@@ -28,9 +28,12 @@ class Inceptionv3(Process):
         self.f6 = open(self.path + 'type' + str(type) + file_name + '_record_6.txt', 'w')
         self.f7 = open(self.path + 'type' + str(type) + file_name + '_record_7.txt', 'w')
         self.type = type
+        self.schedule = True
         if type == 0:
-            self.autodiff_name = "autodiff.py"
-            self.TrainExecute_name = "TrainExecuteAdam.py"
+            self.autodiff_name = "autodiff_capu.py"
+            self.TrainExecute_name = "TrainExecuteAdam_Capu.py"
+            self.schedule = False
+            self.is_capu = True
         elif type == 1:
             self.autodiff_name = "autodiff_capu.py"
             self.TrainExecute_name = "TrainExecuteAdam_Capu.py"
@@ -39,8 +42,9 @@ class Inceptionv3(Process):
             self.autodiff_name = "autodiff_vdnn.py"
             self.TrainExecute_name = "TrainExecuteAdam_vDNNconv.py"
         elif type == 3:
-            self.autodiff_name = "autodiff.py"
-            self.TrainExecute_name = "TrainExecuteAdam.py"
+            self.autodiff_name = "autodiff_vdnn.py"
+            self.TrainExecute_name = "TrainExecuteAdam_vDNNconv.py"
+            self.schedule = False
         self.ad = imp.load_source(self.autodiff_name, tinyflow_path + self.autodiff_name)
         self.TrainExecute = imp.load_source(self.autodiff_name, tinyflow_path + self.TrainExecute_name)
 
@@ -526,11 +530,12 @@ class Inceptionv3(Process):
         X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 299, 299))
         y_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 1000))
         aph = 0.001
-        if self.is_capu == True and self.budget != None:
-            self.ad.setmaxmem(self.budget)
-            t = self.TrainExecute.TrainExecutor(loss, aph, maxmem=self.budget)
+        if self.is_capu == True:
+            budget = -1 if not self.schedule else self.budget
+            self.ad.setmaxmem(budget)
+            t = self.TrainExecute.TrainExecutor(loss, aph, maxmem=budget, schedule=self.schedule)
         else:
-            t = self.TrainExecute.TrainExecutor(loss, aph)
+            t = self.TrainExecute.TrainExecutor(loss, aph, schedule=self.schedule)
         t.init_Variable(
             { filterb_1: filtersb_val1, filterb_2: filtersb_val2, filterb_3: filtersb_val3
                                            , filterb_4: filtersb_val4, filterb_5: filtersb_val5,
