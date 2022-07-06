@@ -232,14 +232,15 @@ class TrainExecutor(object):
             self.infer_shape(feed_shapes)
 
             #存已经被计算过的node
-            node_computed = set()
+            # node_computed = set()
 
             # 初始化index_to_cpu_map和index_to_gpu_map, 还有index_to_cpu_flag
             for node in self.node_to_shape_map:
                 index_to_cpu_map[node.index] = ndarray.empty(self.node_to_shape_map[node], self.ctx_cpu)
-            for node in self.topo_order:
-                index_to_cpu_flag[node.index] = False
-                index_to_gpu_map[node.index] = None
+            if schedule:
+                for node in self.topo_order:
+                    index_to_cpu_flag[node.index] = False
+                    index_to_gpu_map[node.index] = None
 
             # 日志记录
             self.start_finish_time = datetime.datetime.now()
@@ -336,7 +337,7 @@ class TrainExecutor(object):
                     assert 0
 
                 #此点被计算过了
-                node_computed.add(node)
+                # node_computed.add(node)
 
                 if schedule:
                     # 同步
