@@ -15,17 +15,23 @@ from pycode.tinyflow.autodiff_capu import Node
 index_to_cpu_map = {}
 index_to_cpu_flag = {}
 index_to_gpu_map = {}
-topo_order=[]
-swap_in_id=0
-swap_in_flag=True
-maxmem=0
-abnormal_passive_cost1 = 0
-abnormal_passive_cost2 = 0
-abnormal_passive_cost3 = 0
-abnormal_passive_cost4 = 0
-recompute_cost = 0
-wait_for_arriving_to_cpu = 0
-first_passive_cost = 0
+topo_order = []
+swap_in_id = 0
+swap_in_flag = True
+maxmem = 0
+# abnormal_passive_cost0 = 0
+# abnormal_passive_cost1 = 0
+# abnormal_passive_cost2 = 0
+# abnormal_passive_cost3 = 0
+# abnormal_passive_cost4 = 0
+# abnormal_passive_cost_compute = 0
+# recompute_cost = 0
+# wait_for_arriving_to_cpu = 0
+# first_passive_cost = 0
+# run_policy_cost = 0
+# after_input_node_cost = 0
+
+
 class MemoryManager(threading.Thread):
     def __init__(self, will_do_queue, have_done_queue):
         threading.Thread.__init__(self)
@@ -50,7 +56,6 @@ class MemoryManager(threading.Thread):
             global maxmem
             global topo_order
 
-
             if move_to_gpu == 0:
                 node_ndarray = index_to_gpu_map[node_index]
                 if node_ndarray is None:
@@ -65,10 +70,11 @@ class MemoryManager(threading.Thread):
                 swap_in_id = node_index
                 node_ndarray = index_to_cpu_map[node_index]
                 # time1 = datetime.datetime.now()
-                node_ndarray_new = ndarray.empty(node_ndarray.shape, self.gpu_ctx,maxmem=maxmem,nowmem=topo_order[node_index].memory)
+                node_ndarray_new = ndarray.empty(node_ndarray.shape, self.gpu_ctx, maxmem=maxmem,
+                                                 nowmem=topo_order[node_index].memory)
                 # time2 = datetime.datetime.now()
-                if isinstance(node_ndarray_new,int):
-                    swap_in_flag=False
+                if isinstance(node_ndarray_new, int):
+                    swap_in_flag = False
                 else:
                     node_ndarray.copyto(node_ndarray_new, self.cudaSwapStream)
                     if index_to_gpu_map[node_index] is None:
@@ -86,7 +92,7 @@ class TrainExecutor(object):
         if not schedule:
             self.maxmem = -1
         else:
-            self.maxmem=maxmem*1024*1024
+            self.maxmem = maxmem * 1024 * 1024
         self.b1 = 0.9
         self.b2 = 0.999
         self.e = 0.00000001
@@ -99,7 +105,9 @@ class TrainExecutor(object):
         self.Variable_node_list.reverse()
         self.Variable_node_grad_list = ad.gradients(self.targetloss, self.Variable_node_list)  # 反向node
 
-        self.eval_node_list, self.mv, self.Variable_node_to_mv = getcomputelist(self.Variable_node_list, self.Variable_node_grad_list, self.b1, self.b2, self.b1t, self.b2t, self.e,
+        self.eval_node_list, self.mv, self.Variable_node_to_mv = getcomputelist(self.Variable_node_list,
+                                                                                self.Variable_node_grad_list, self.b1,
+                                                                                self.b2, self.b1t, self.b2t, self.e,
                                                                                 self.learning_rate)  # 其内存还是Variable，但是换了个点
         self.ctx = ctx
         # 根据这个topo_order算
@@ -123,7 +131,6 @@ class TrainExecutor(object):
         self.isfirstrun = 0
         self.isc = 0
 
-
         self.access_index = 0
         self.will_do_queue = queue.Queue()
         self.have_done_queue = queue.Queue()
@@ -132,10 +139,10 @@ class TrainExecutor(object):
         self.memoryManager.start()
         for i in range(len(self.topo_order)):
             self.topo_order[i].index = i
-            node=self.topo_order[i]
+            node = self.topo_order[i]
             if node.name == "FullyDropoutBackward" or node.name == "DropoutBackward" or node.name == "BNBackward" or node.name == "FullyBNBackward":
-                node.isdrop=1
-                    # 日志记录
+                node.isdrop = 1
+                # 日志记录
         # for i in range(len(self.topo_order)):
         #     self.topo_order[i].index = i
         #     node=self.topo_order[i]
@@ -150,6 +157,20 @@ class TrainExecutor(object):
         self.ctx_cpu = ndarray.cpu(0)
         self.reflush_access = []
         self.peakaccess_idx = set()
+
+        self.reflush_cost = 0
+        self.abnormal_passive_cost0 = 0
+        self.abnormal_passive_cost1 = 0
+        self.abnormal_passive_cost2 = 0
+        self.abnormal_passive_cost3 = 0
+        self.abnormal_passive_cost4 = 0
+        self.recompute_cost = 0
+        self.wait_for_arriving_to_cpu = 0
+        self.wait_for_cpu2gpu_just_after_gpu2cpu = 0
+        self.first_passive_cost = 0
+        self.abnormal_passive_cost_compute = 0
+        self.run_policy_cost = 0
+        self.after_input_node_cost = 0
 
     def infer_shape(self, feed_shapes):
         """Given shapes of feed_dict nodes, infer shape for all nodes in graph.
@@ -198,11 +219,6 @@ class TrainExecutor(object):
         global swap_in_id
         global topo_order
         global maxmem
-        global abnormal_passive_cost1
-        global abnormal_passive_cost2
-        global abnormal_passive_cost3
-        global abnormal_passive_cost4
-        global first_passive_cost
 
         schedule = self.schedule
         if self.isfirstrun == 0:
@@ -217,8 +233,6 @@ class TrainExecutor(object):
             # Bytes/second
             if schedule:
                 pciin, pciout = gpu_op.testPcie()
-                pciin = pciin * 1024
-                pciout = pciout * 1024
                 print(f'pciin:{pciin}, pciout:{pciout}')
 
                 need_tomem = 0
@@ -243,7 +257,7 @@ class TrainExecutor(object):
                     node.srcs = list(node.inputs)
                     node.swapouttime = node.memory / pciout
                     node.swapintime = node.memory / pciin
-                    index_to_cpu_flag[node.index]=False
+                    index_to_cpu_flag[node.index] = False
                     index_to_gpu_map[node.index] = None
 
             # 存已经被计算过的node
@@ -258,44 +272,42 @@ class TrainExecutor(object):
 
                 node = self.topo_order[idx]
 
-
                 # 已经被计算过了
                 # if node in node_computed:
                 #     continue
                 # 是inputs
                 if node in feed_dict.keys():
                     # 申请空间
-                    ret = ndarray.array(feed_dict[node], ctx=self.ctx,maxmem=self.maxmem,nowmem=node.memory)
+                    ret = ndarray.array(feed_dict[node], ctx=self.ctx, maxmem=self.maxmem, nowmem=node.memory)
                     if isinstance(ret, int) and schedule:
                         self.getpeakaccess(node)
-                        ret, saved_memory=self.tensors_evict(ret,node,node,idx,feed_dict[node],flag=False)
+                        ret, saved_memory = self.tensors_evict(ret, node, node, idx, feed_dict[node], flag=False)
                         need_tomem += saved_memory
                     # 此时ret为ndarray
                     # value都存在self.node_to_arr_map
-                    index_to_gpu_map[idx]= ret
+                    index_to_gpu_map[idx] = ret
                     node.array_status = 1
                     # node_computed.add(node)
                     continue
 
                 # 不是SgdOp,申请内存
 
-
                 input_vals = []
                 for n in node.inputs:
                     if schedule:
                         self.tensor_accsess(n, idx)
-                        while n.array_status==0:
-                            if index_to_cpu_flag[n.index]==False:
+                        while n.array_status == 0:
+                            if index_to_cpu_flag[n.index] == False:
                                 continue
-                            ret = ndarray.empty(self.node_to_shape_map[n], self.ctx,self.maxmem,nowmem=n.memory)
+                            ret = ndarray.empty(self.node_to_shape_map[n], self.ctx, self.maxmem, nowmem=n.memory)
                             if isinstance(ret, int):
                                 self.getpeakaccess(node)
-                                ret, saved_memory=self.tensors_evict(ret,n,node,idx)
+                                ret, saved_memory = self.tensors_evict(ret, n, node, idx)
                                 need_tomem += saved_memory
                             index_to_cpu_map[n.index].copyto(ret, self.cudaStream)
                             index_to_gpu_map[n.index] = ret
                             n.array_status = 1
-                            index_to_cpu_flag[n.index]=False
+                            index_to_cpu_flag[n.index] = False
                     input_vals.append(index_to_gpu_map[n.index])
 
                 # 除了SgdOp，其他的点此时要保证在gpu中
@@ -303,7 +315,8 @@ class TrainExecutor(object):
                     # 给这个点申请内存
                     # 申请空间
                     t1 = time.time()
-                    ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem,nowmem=node.memory)
+                    ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx, maxmem=self.maxmem,
+                                        nowmem=node.memory)
                     t2 = time.time()
                     if isinstance(ret, int) and schedule:
                         self.getpeakaccess(node)
@@ -321,9 +334,10 @@ class TrainExecutor(object):
                                     break
                         # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
                         while True:
-                            t1=time.time()
-                            ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx, maxmem=self.maxmem,nowmem=node.memory)
-                            t2=time.time()
+                            t1 = time.time()
+                            ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx, maxmem=self.maxmem,
+                                                nowmem=node.memory)
+                            t2 = time.time()
                             if not isinstance(ret, int):
                                 break
                             if count < len(self.topo_order) - 1:
@@ -344,9 +358,9 @@ class TrainExecutor(object):
                     index_to_gpu_map[idx] = None
                 node_val = index_to_gpu_map[idx]
                 tic = time.time()
-                memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
+                memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle,
+                                                 self.cudaStream)
                 toc = time.time()
-
 
                 if memorytoSaving != 0:
                     if not schedule:
@@ -368,7 +382,8 @@ class TrainExecutor(object):
                         # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
                         while True:
                             tic = time.time()
-                            memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle,self.cublasHandle, self.cudaStream)
+                            memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle,
+                                                             self.cublasHandle, self.cudaStream)
                             toc = time.time()
                             if memorytoSaving == 0:
                                 break
@@ -376,7 +391,7 @@ class TrainExecutor(object):
                                 count += 1
                             dnode = self.topo_order[count]
                             if self.isevict(dnode, node):
-                                need_tomem+=dnode.memory
+                                need_tomem += dnode.memory
                                 self.tensor_evict(dnode)
                                 self.arrive_to_cpu(dnode)
                 # 此点被计算过了
@@ -410,9 +425,9 @@ class TrainExecutor(object):
             self.b2t[0] = self.b2t[0] * self.b2
             if schedule:
                 self.clear()
-            #不是第一次了
+            # 不是第一次了
             self.isfirstrun = 1
-            # first_passive_cost += time.time()-stime
+            self.first_passive_cost += time.time()-stime
             return []
 
 
@@ -422,65 +437,69 @@ class TrainExecutor(object):
             # print('new iter')
             for idx in range(len(self.topo_order)):
                 node = self.topo_order[idx]
-                 # 已经被计算过了
+                # 已经被计算过了
                 # if node in node_computed:
                 #     continue
                 # 是inputs
                 if node in feed_dict.keys():
 
-                    ret = ndarray.array(feed_dict[node], ctx=self.ctx,maxmem=self.maxmem,nowmem=node.memory)
+                    ret = ndarray.array(feed_dict[node], ctx=self.ctx, maxmem=self.maxmem, nowmem=node.memory)
+                    st = time.time()
                     if isinstance(ret, int) and schedule:
-                        ret, _ = self.tensors_evict(ret, node, node, idx, feed_dict[node],flag=False)
+                        ret, _ = self.tensors_evict(ret, node, node, idx, feed_dict[node], flag=False, passive=True)
+                    self.abnormal_passive_cost0 += time.time() - st
                     index_to_gpu_map[idx] = ret
                     if schedule:
                         node.array_status = 1
-                        index_to_cpu_flag[idx]=False
+                        index_to_cpu_flag[idx] = False
 
                     continue
 
                 # 如果node是变量，不用管
                 if node in self.Variable_node_list:
-                    if index_to_gpu_map[idx] != None or not schedule:
-                        continue
-                    else:
-                        # st = time.time()
-                        # 没在GPU中,重新在GPU申请空间
-                        ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem,nowmem=node.memory)
-                        if isinstance(ret, int):
-                            ret, _ = self.tensors_evict(ret, node, node, idx, passive=True)
-                            # print(f'abnormal passive, idx:{idx}, num:1')
-                            # abnormal_passive_cost1 += time.time() - st
-                        # 此时ret为ndarray
-                        # value都存在self.node_to_arr_map
-                        # print(f'passively swap in tensor {idx} on iter {idx}, num:1')
-                        index_to_cpu_map[idx].copyto(ret, self.cudaStream)
-                        index_to_gpu_map[idx] = ret
-                        if schedule:
-                            node.array_status = 1
-                            index_to_cpu_flag[node.index] = False
+                    # if index_to_gpu_map[idx] != None or not schedule:
+                    #     continue
+                    # else:
+                    #     # 没在GPU中,重新在GPU申请空间
+                    #     ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx, maxmem=self.maxmem,
+                    #                         nowmem=node.memory)
+                    #     st = time.time()
+                    #     if isinstance(ret, int):
+                    #         ret, _ = self.tensors_evict(ret, node, node, idx, passive=True)
+                    #         # print(f'abnormal passive, idx:{idx}, num:1')
+                    #         abnormal_passive_cost1 += time.time() - st
+                    #     # 此时ret为ndarray
+                    #     # value都存在self.node_to_arr_map
+                    #     # print(f'passively swap in tensor {idx} on iter {idx}, num:1')
+                    #     index_to_cpu_map[idx].copyto(ret, self.cudaStream)
+                    #     index_to_gpu_map[idx] = ret
+                    #     if schedule:
+                    #         node.array_status = 1
+                    #         index_to_cpu_flag[node.index] = False
                     # node_computed.add(node)
                     continue
 
                 # 如果node是adam要用的变量，不用管
                 if node in self.mv:
-                    if index_to_gpu_map[node.index] != None or not schedule:
-                        continue
-                    else:
-                        # st = time.time()
-                        # 没在GPU中,重新在GPU申请空间
-                        ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem,nowmem=node.memory)
-                        if isinstance(ret, int):
-                            ret, _ = self.tensors_evict(ret, node, node, idx, passive=True)
-                            # print(f'abnormal passive, idx:{idx}, num:2')
-                            # abnormal_passive_cost2 += time.time() - st
-                        # 此时ret为ndarray
-                        # value都存在self.node_to_arr_map
-                        # print(f'passively swap in tensor {idx} on iter {idx}, num:2')
-                        index_to_cpu_map[idx].copyto(ret, self.cudaStream)
-                        index_to_gpu_map[idx] = ret
-                        if schedule:
-                            node.array_status = 1
-                            index_to_cpu_flag[idx] = False
+                    # if index_to_gpu_map[node.index] != None or not schedule:
+                    #     continue
+                    # else:
+                    #     # 没在GPU中,重新在GPU申请空间
+                    #     ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx, maxmem=self.maxmem,
+                    #                         nowmem=node.memory)
+                    #     st = time.time()
+                    #     if isinstance(ret, int):
+                    #         ret, _ = self.tensors_evict(ret, node, node, idx, passive=True)
+                    #         # print(f'abnormal passive, idx:{idx}, num:2')
+                    #         abnormal_passive_cost2 += time.time() - st
+                    #     # 此时ret为ndarray
+                    #     # value都存在self.node_to_arr_map
+                    #     # print(f'passively swap in tensor {idx} on iter {idx}, num:2')
+                    #     index_to_cpu_map[idx].copyto(ret, self.cudaStream)
+                    #     index_to_gpu_map[idx] = ret
+                    #     if schedule:
+                    #         node.array_status = 1
+                    #         index_to_cpu_flag[idx] = False
                     # node_computed.add(node)
                     continue
 
@@ -489,60 +508,66 @@ class TrainExecutor(object):
                 input_vals = []
                 for input_node in node.inputs:
                     if schedule:
+                        st = time.time()
                         policy = self.policy_run(input_node)
                         prior_policy = self.prior_policy_run(input_node, node)
+                        self.run_policy_cost += time.time()-st
                         if input_node.array_status == 0:
-                            st = time.time()
                             self.arrive_to_cpu(input_node)
-                            ret = ndarray.empty(self.node_to_shape_map[input_node], ctx=self.ctx,maxmem=self.maxmem,nowmem=input_node.memory)
+                            ret = ndarray.empty(self.node_to_shape_map[input_node], ctx=self.ctx, maxmem=self.maxmem,
+                                                nowmem=input_node.memory)
+                            st = time.time()
                             if isinstance(ret, int):
                                 ret, _ = self.tensors_evict(ret, input_node, node, idx, passive=True)
                                 # print(f'abnormal passive, idx:{idx}, num:3')
-                                abnormal_passive_cost3 += time.time() - st
+                                self.abnormal_passive_cost3 += time.time() - st
                             # 此时ret为ndarray
                             # value都存在self.node_to_arr_map
                             # print(f'passively swap in tensor {input_node.index} on iter {idx}, num:3')
+                            st = time.time()
                             index_to_cpu_map[input_node.index].copyto(ret, self.cudaStream)
                             index_to_gpu_map[input_node.index] = ret
                             input_node.array_status = 1
                             index_to_cpu_flag[input_node.index] = False
+                            self.wait_for_cpu2gpu_just_after_gpu2cpu += time.time() - st
                     input_vals.append(index_to_gpu_map[input_node.index])
                     if schedule:
-                        if policy == 1 or prior_policy == 1 :
+                        st = time.time()
+                        if policy == 1 or prior_policy == 1:
                             self.tensor_evict(input_node)
                         elif prior_policy == 3:
                             self.tensor_free(input_node)
-
+                        self.after_input_node_cost += time.time() - st
 
                 if node.issgd == 0:
-                    # st = time.time()
-                    if schedule:
-                        ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx,maxmem=self.maxmem,nowmem=node.memory)
-                        if isinstance(ret, int) and schedule:
-                            ret, _ = self.tensors_evict(ret, node, node, idx, passive=True)
-                            # print(f'abnormal passive, idx:{idx}, num:4')
-                            # abnormal_passive_cost4 += time.time() - st
-                        # 此时ret为ndarray
-                        # value都存在self.node_to_arr_map
-                        index_to_gpu_map[idx] = ret
-                        node.array_status = 1
+                    if index_to_gpu_map[idx] is not None:
+                        pass
                     else:
-                        if index_to_gpu_map[idx] is not None:
-                            pass
+                        ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx, maxmem=self.maxmem,
+                                            nowmem=node.memory)
+                        if schedule:
+                            st = time.time()
+                            if isinstance(ret, int) and schedule:
+                                ret, _ = self.tensors_evict(ret, node, node, idx, passive=True)
+                                # print(f'abnormal passive, idx:{idx}, num:4')
+                                self.abnormal_passive_cost4 += time.time() - st
+                            # 此时ret为ndarray
+                            # value都存在self.node_to_arr_map
+                            index_to_gpu_map[idx] = ret
+                            node.array_status = 1
                         else:
-                            ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx, maxmem=self.maxmem,
-                                                nowmem=node.memory)
-
                             while isinstance(ret, int):
                                 print("显存超限")
                                 assert 0
-                            index_to_gpu_map[idx] = ret
+                        index_to_gpu_map[idx] = ret
                 node_val = index_to_gpu_map[idx]
-                memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
+                memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle,
+                                                 self.cudaStream)
                 if memorytoSaving != 0:
                     if not schedule:
                         assert 0
                     else:
+                        st = time.time()
                         # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
                         count = 0
                         for i in range(len(self.topo_order)):
@@ -565,33 +590,29 @@ class TrainExecutor(object):
                             if self.isevict(dnode, node):
                                 self.tensor_evict(dnode)
                                 self.arrive_to_cpu(dnode)
+                        self.abnormal_passive_cost_compute += time.time() - st
                 # 此点被计算过了
                 # node_computed.add(node)
             self.b1t[0] = self.b1t[0] * self.b1
             self.b2t[0] = self.b2t[0] * self.b2
 
             if schedule:
+                st = time.time()
                 self.capu.reflush(self.reflush_access)
                 self.clear()
-            # print(f'abnormal_passive_cost1:{abnormal_passive_cost1}')
-            # print(f'abnormal_passive_cost2:{abnormal_passive_cost2}')
-            # print(f'abnormal_passive_cost3:{abnormal_passive_cost3}')
-            # print(f'abnormal_passive_cost4:{abnormal_passive_cost4}')
-            # print(f'recompute_cost:{recompute_cost}')
-            # print(f'wait_for_arriving_to_cpu:{wait_for_arriving_to_cpu}')
-            # print(f'first_passive_cost:{first_passive_cost}')
+                self.reflush_cost += time.time()-st
             return []
 
     def clear(self):
         self.access_index = 0
-        self.reflush_access=[]
+        self.reflush_access = []
         for node in self.topo_order:
-            if  node.isw==0 or node.isw==2:
-                if node.array_status==1:
-                    index_to_gpu_map[node.index]=None
-                index_to_cpu_flag[node.index]=False
-                node.array_status=-1
-            elif node.array_status == 0 and index_to_cpu_flag[node.index]==False:
+            if node.isw == 0 or node.isw == 2:
+                if node.array_status == 1:
+                    index_to_gpu_map[node.index] = None
+                index_to_cpu_flag[node.index] = False
+                node.array_status = -1
+            elif node.array_status == 0 and index_to_cpu_flag[node.index] == False:
                 self.arrive_to_cpu(node)
 
     def policy_run(self, input_node):
@@ -607,12 +628,12 @@ class TrainExecutor(object):
                 while index_to_cpu_flag[input_node.index] != False or swap_in_id != input_node.index:
 
                     if input_node.array_status == 0:
-                        if len(self.reflush_access)>0:
+                        if len(self.reflush_access) > 0:
                             self.reflush_access.pop()
                         break
                     if swap_in_id == input_node.index and swap_in_flag == False:
                         # print("有问题")
-                        if len(self.reflush_access)>0:
+                        if len(self.reflush_access) > 0:
                             self.reflush_access.pop()
                         input_node.array_status = 0
                         break
@@ -650,7 +671,6 @@ class TrainExecutor(object):
 
     # 无法在策略中掩藏开销的，进行该操作
     def prior_policy_run(self, input_node, node):
-        global recompute_cost
         prior_policy = self.capu.prior_policy[self.access_index]
         prior_policy_in = self.capu.prior_policy_in[self.access_index]
         # 对inputs计划进行swap in
@@ -676,7 +696,7 @@ class TrainExecutor(object):
                 # print(f'recompute, tensor:{input_node.index} ')
                 t = time.time()
                 self.recompute(input_node, node, queue.Queue())
-                recompute_cost += time.time() - t
+                self.recompute_cost += time.time() - t
         self.access_index += 1
         return prior_policy
 
@@ -690,7 +710,7 @@ class TrainExecutor(object):
         return self.node_order
 
     def isevict(self, dnode, node):
-        if (dnode not in node.inputs) and dnode != node and dnode.array_status == 1 :
+        if (dnode not in node.inputs) and dnode != node and dnode.array_status == 1:
             return True
         else:
             return False
@@ -705,6 +725,7 @@ class TrainExecutor(object):
                     saved_memory += node_to_free.memory
                 else:
                     break
+
         # 得到gpu上的输入
         input_vals = []
         for n in rep_node.inputs:
@@ -766,12 +787,12 @@ class TrainExecutor(object):
                 else:
                     raise Exception('no enough memory for collective recomputation')
         stored_rep_node.put(rep_node)
+
     def arrive_to_cpu(self, n):
-        global wait_for_arriving_to_cpu
         t = time.time()
-        while index_to_cpu_flag[n.index]!=True:
+        while index_to_cpu_flag[n.index] != True:
             continue
-        wait_for_arriving_to_cpu =+ time.time() - t
+        self.wait_for_arriving_to_cpu = + time.time() - t
         # print('arrive_to_cpu')
 
     def tensor_evict(self, access_node):
@@ -780,9 +801,10 @@ class TrainExecutor(object):
         # self.arrive_to_cpu(access_node)
 
     def tensor_free(self, access_node):
-        index_to_gpu_map[access_node.index]=None
+        index_to_gpu_map[access_node.index] = None
         access_node.array_status = 2
-    def tensors_evict(self, ret,n,node,idx=-1,feed=None,flag=True,passive=False):
+
+    def tensors_evict(self, ret, n, node, idx=-1, feed=None, flag=True, passive=False):
         count = 0
         saved_memory = 0
         for i in range(len(self.topo_order)):
@@ -800,9 +822,9 @@ class TrainExecutor(object):
         # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
         while True:
             if flag:
-                ret = ndarray.empty(self.node_to_shape_map[n], ctx=self.ctx,maxmem=self.maxmem,nowmem=n.memory)
+                ret = ndarray.empty(self.node_to_shape_map[n], ctx=self.ctx, maxmem=self.maxmem, nowmem=n.memory)
             else:
-                ret = ndarray.array(feed, ctx=self.ctx,maxmem=self.maxmem,nowmem=n.memory)
+                ret = ndarray.array(feed, ctx=self.ctx, maxmem=self.maxmem, nowmem=n.memory)
 
             if not isinstance(ret, int):
                 break
@@ -816,7 +838,8 @@ class TrainExecutor(object):
                 #     print(f'passively evict tensor:{count} on iter {idx}')
                 self.arrive_to_cpu(dnode)
         return ret, saved_memory
-    def tensors_evict_rep(self, ret,n,node1,node2,feed=None):
+
+    def tensors_evict_rep(self, ret, n, node1, node2, feed=None):
         count = 0
         for i in range(len(self.topo_order)):
             dnode = self.topo_order[i]
@@ -830,15 +853,15 @@ class TrainExecutor(object):
                     break
         # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
         while True:
-            if feed==None:
-                ret = ndarray.empty(self.node_to_shape_map[n], ctx=self.ctx,maxmem=self.maxmem,nowmem=n.memory)
+            if feed == None:
+                ret = ndarray.empty(self.node_to_shape_map[n], ctx=self.ctx, maxmem=self.maxmem, nowmem=n.memory)
             else:
-                ret = ndarray.array(feed, ctx=self.ctx,maxmem=self.maxmem,nowmem=n.memory)
+                ret = ndarray.array(feed, ctx=self.ctx, maxmem=self.maxmem, nowmem=n.memory)
 
             if not isinstance(ret, int):
                 break
-            if count<len(self.topo_order)-1:
-                count+=1
+            if count < len(self.topo_order) - 1:
+                count += 1
             dnode = self.topo_order[count]
             if self.isevict(dnode, node1) and self.isevict(dnode, node2):
                 self.tensor_evict(dnode)
@@ -857,7 +880,7 @@ class TrainExecutor(object):
     def getpeakaccess(self, node):
         self.peakaccess_idx.add(node.index)
         for i in range(len(self.topo_order)):
-            if self.topo_order[i].array_status == 1 or self.topo_order[i]==node:
+            if self.topo_order[i].array_status == 1 or self.topo_order[i] == node:
                 self.topo_order[i].peakaccess.append(self.topo_order[i].access_count)
 
     def destroy_cudaStream(self):
@@ -900,7 +923,8 @@ def getcomputelist(Variable_node_list, Variable_node_grad_list, b1, b2, b1t, b2t
         mv.append(m)
         mv.append(v)
         Variable_node_to_mv[Variable_node_list[i]] = (m, v)
-        adamnode = ad.adam_op(Variable_node_list[i], m, v, Variable_node_grad_list[i], b1, b2, b1t, b2t, e, learning_rate)
+        adamnode = ad.adam_op(Variable_node_list[i], m, v, Variable_node_grad_list[i], b1, b2, b1t, b2t, e,
+                              learning_rate)
         adamnode.issgd = 1  # 代表不用为这个点加内存
         computelist.append(adamnode)
 

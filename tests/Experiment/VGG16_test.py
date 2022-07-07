@@ -37,6 +37,7 @@ class VGG16(Process):
             self.schedule = False
             self.is_capu=True
         elif type == 1:
+            self.f8 = open(self.path + 'type' + str(type) + file_name + '_record_8.txt', 'w')
             self.autodiff_name = "autodiff_capu.py"
             self.TrainExecute_name = "TrainExecuteAdam_Capu.py"
             self.is_capu = True
@@ -189,14 +190,38 @@ class VGG16(Process):
         # print(f'time_cost:{(start_finish_time-start_time).total_seconds()}')
         hit_count, swap_count = t.get_hit()
         print("hit_count ", hit_count, "\nswap_count", swap_count, file=self.f6)
-        node_order = t.get_node_order()
-        for i in node_order:
-            print(i, file=self.f7)
+        # node_order = t.get_node_order()
+        # for i in node_order:
+        #     print(i, file=self.f7)
         t.destroy_cudaStream()
+
         self.f1.close()
         self.f3.close()
         self.f6.close()
         self.f7.close()
+        if self.type==1:
+            print(
+                f'abnormal_passive_evict:{t.abnormal_passive_cost0 + t.abnormal_passive_cost1 + t.abnormal_passive_cost2 + t.abnormal_passive_cost3 + t.abnormal_passive_cost4 + t.abnormal_passive_cost_compute}',
+                file=self.f8)
+            print(f'recompute_cost:{t.recompute_cost}', file=self.f8)
+            print(f'wait_for_arriving_to_cpu:{t.wait_for_arriving_to_cpu}', file=self.f8)
+            print(f'first_passive_cost:{t.first_passive_cost}', file=self.f8)
+            print(f'run_policy_cost:{t.run_policy_cost}', file=self.f8)
+            print(f'after_input_node_cost:{t.after_input_node_cost}', file=self.f8)
+            print(f'reflush_cost:{t.reflush_cost}', file=self.f8)
+            print(f'wait_for_cpu2gpu_just_after_gpu2cpu:{t.wait_for_cpu2gpu_just_after_gpu2cpu}', file=self.f8)
+
+            print(
+                f'abnormal_passive_evict:{t.abnormal_passive_cost0 + t.abnormal_passive_cost1 + t.abnormal_passive_cost2 + t.abnormal_passive_cost3 + t.abnormal_passive_cost4 + t.abnormal_passive_cost_compute}')
+            print(f'recompute_cost:{t.recompute_cost}')
+            print(f'wait_for_arriving_to_cpu:{t.wait_for_arriving_to_cpu}')
+            print(f'first_passive_cost:{t.first_passive_cost}')
+            print(f'run_policy_cost:{t.run_policy_cost}')
+            print(f'after_input_node_cost:{t.after_input_node_cost}')
+            print(f'reflush_cost:{t.reflush_cost}')
+            print(f'wait_for_cpu2gpu_just_after_gpu2cpu:{t.wait_for_cpu2gpu_just_after_gpu2cpu}')
+
+            self.f8.close()
 
     def run(self):
         X_val = np.random.normal(loc=0, scale=0.1, size=(self.batch_size, 3, 224, 224))  # number = batch_size  channel = 3  image_size = 224*224

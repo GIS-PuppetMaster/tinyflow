@@ -249,23 +249,24 @@ class capuchin:
 
                 # and re_id != -1
                 elif self.prior_policy[self.topo_order[re_id].use_access_id[ti]] == 0 and re_id != -1 and ti != len(self.topo_order[re_id].FT) - 1:
-                    def get_all_inputs(node, inputs, using_nodes):
-                        using_nodes.add(node)
-                        inputs = inputs + node.inputs
-                        for ipt in node.inputs:
-                            ipt.nodes_use_self_as_input.update(using_nodes)
-                            get_all_inputs(ipt, inputs, using_nodes)
-                        using_nodes.remove(node)
-                    rep_inputs = []
-                    using_nodes = set()
-                    get_all_inputs(self.topo_order[re_id], rep_inputs, using_nodes)
-                    flag = False
-                    for ipt in rep_inputs:
-                        if ipt in self.swap:
-                            flag = True
-                            break
-                    if flag:
-                        continue
+                    # def get_all_inputs(node, inputs, using_nodes):
+                    #     using_nodes.add(node)
+                    #     inputs = inputs + node.inputs
+                    #     for ipt in node.inputs:
+                    #         ipt.nodes_use_self_as_input.update(using_nodes)
+                    #         print(f'ipt:{ipt.index}')
+                    #         get_all_inputs(ipt, inputs, using_nodes)
+                    #     using_nodes.remove(node)
+                    # rep_inputs = []
+                    # using_nodes = set()
+                    # get_all_inputs(self.topo_order[re_id], rep_inputs, using_nodes)
+                    # flag = False
+                    # for ipt in rep_inputs:
+                    #     if ipt in self.swap:
+                    #         flag = True
+                    #         break
+                    # if flag:
+                    #     continue
                     # 布置策略
                     self.prior_policy[self.topo_order[re_id].use_access_id[ti]] = 3
                     self.prior_policy_in[self.topo_order[re_id].use_access_id[ti + 1]] = 4
