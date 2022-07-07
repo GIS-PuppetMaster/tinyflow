@@ -616,7 +616,9 @@ class TrainExecutor(object):
                             self.reflush_access.pop()
                         input_node.array_status = 0
                         break
+                    # swapin之后又被逐出
                     # if self.memoryManager.will_do_queue.empty():
+                    #     self.reflush_access.pop()
                     #     ret = ndarray.empty(self.node_to_shape_map[input_node], ctx=self.ctx, maxmem=self.maxmem, nowmem=input_node.memory)
                     #     if isinstance(ret, int):
                     #         ret = self.tensors_evict(ret, input_node, input_node)
