@@ -62,7 +62,7 @@ class Node(object):
         self.swapouttime = 0
         self.swapintime = 0
         self.post_swap_in_times = 0
-        self.peakaccess = []
+        self.peakaccess = set()
         self.accesses = []
 
     def __add__(self, other):

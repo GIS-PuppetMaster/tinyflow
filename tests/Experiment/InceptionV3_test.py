@@ -607,6 +607,25 @@ class Inceptionv3(Process):
         self.f7.close()
         if self.type==1:
             print(
+                f'abnormal_passive_evict0:{t.abnormal_passive_cost0}',
+                file=self.f8)
+            print(
+                f'abnormal_passive_evict1:{t.abnormal_passive_cost1}',
+                file=self.f8)
+            print(
+                f'abnormal_passive_evict2:{t.abnormal_passive_cost2}',
+                file=self.f8)
+            print(
+                f'abnormal_passive_evict3:{t.abnormal_passive_cost3}',
+                file=self.f8)
+            print(
+                f'abnormal_passive_evict4:{t.abnormal_passive_cost4}',
+                file=self.f8)
+            print(
+                f'abnormal_passive_cost_compute:{t.abnormal_passive_cost_compute}',
+                file=self.f8)
+            print('', file=self.f8)
+            print(
                 f'abnormal_passive_evict:{t.abnormal_passive_cost0 + t.abnormal_passive_cost1 + t.abnormal_passive_cost2 + t.abnormal_passive_cost3 + t.abnormal_passive_cost4 + t.abnormal_passive_cost_compute}',
                 file=self.f8)
             print(f'recompute_cost:{t.recompute_cost}', file=self.f8)
@@ -627,7 +646,7 @@ class Inceptionv3(Process):
             print(f'reflush_cost:{t.reflush_cost}')
             print(f'wait_for_cpu2gpu_just_after_gpu2cpu:{t.wait_for_cpu2gpu_just_after_gpu2cpu}')
 
-        self.f8.close()
+            self.f8.close()
 
         return 0
     def run(self):

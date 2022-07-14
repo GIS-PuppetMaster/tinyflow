@@ -17,11 +17,11 @@ os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
 net_names = ['VGG', 'InceptionV3', 'InceptionV4', 'ResNet', 'DenseNet']
 repeat_times = 1
 ratio = {
-    'VGG': 0.2798349455455591,
-    'InceptionV3': 0.49659956269320665,
-    'InceptionV4': 0.5757002707861677,
-    'ResNet': 0.592396694214876,
-    'DenseNet': 0.705503563981962
+    'VGG': 0.4654201822477219,
+    'InceptionV3': 0.6161714930424973,
+    'InceptionV4': 0.7081164945254665,
+    'ResNet': 0.600043020004302,
+    'DenseNet': 0.7222270636649722
 }
 
 
@@ -49,10 +49,12 @@ def generate_job(num_step, net_id, type, batch_size, path, budget, file_name="")
 
 
 def Experiment1():
-    for net_id in range(5):
+    for net_id in range(2,3):
         print("Experiment1 start")
         net_name = net_names[net_id]
-        for i, num_net in enumerate([1, 2, 3]):
+        for i, num_net in enumerate([1]):
+            # if not num_net==4 and net_id==3:
+            #     continue
             batch_size = 16
             net_name_ = net_name + f' x{i + 1}'
             print("batch_size", batch_size)

@@ -59,7 +59,7 @@ class capuchin:
         self.prior_policy = [0] * len(self.tensor_access_list)
         self.prior_policy_in = [0] * len(self.tensor_access_list)
         self.swap = [-1] * len(self.tensor_access_list)
-        self.memory_tosaving = memory_tosaving*2
+        self.memory_tosaving = memory_tosaving
         self.end_time = end_time
 
         def identifyAndSortCandidates():
@@ -69,7 +69,7 @@ class capuchin:
                     # 遍历所有access
                     for i in range(0,node.access_count):
                         # 如果下一次access出现在peak时
-                        if  i+1 in node.peakaccess :
+                        if i+1 in node.peakaccess:
                             # (目标node_index, 本次access的FT, 本次access_index)
                             self.candidates.append((node.index,node.FT[i],i))
 
@@ -91,18 +91,15 @@ class capuchin:
                 out_start = swapout_id
                 out_end = out_start
                 while True:
-                    if self.policy[out_end] == 0:
-                        out_end = out_end + 1
-                        if (out_end > limit):
-                            return False
-                    else:
-                        return False
                     if self.tensor_access_list[out_end][2] > swapoutend_time and self.policy[out_end] == 0:
                         break
+                    out_end += 1
+                    if out_end > limit:
+                        return False
                 self.policy[out_start] = 1
                 self.swap[out_start] = t
-                for i in range(out_start + 1, out_end + 1):
-                    self.policy[i] = 3
+                # for i in range(out_start + 1, out_end + 1):
+                #     self.policy[i] = 3
                 self.candidates.remove((t, self.topo_order[t].FT[ti], ti))
                 self.memory_tosaving = self.memory_tosaving - self.topo_order[t].memory
                 return True
@@ -113,33 +110,25 @@ class capuchin:
             out_start = swapout_id
             out_end = out_start
             while True:
-                if self.policy[out_end] == 0:
-                    out_end = out_end + 1
-                    if (out_end>limit):
-                        return False
-                else:
-                    return False
-                if self.tensor_access_list[out_end][2] >swapoutend_time and self.policy[out_end]==0:
+                if self.tensor_access_list[out_end][2] >= swapoutend_time and self.policy[out_end] == 0:
                     break
-
-
-
+                out_end += 1
+                if out_end > limit:
+                    return False
             in_end = swapin_id
             in_start = in_end - 1
             if (in_start < 0):
                 return False
             while True:
-                if self.policy[in_start] == 0 and self.policy_in[in_start]==0:
-                    in_start = in_start - 1
-                    if (in_start < 0):
-                        return False
-                else:
+                if self.tensor_access_list[in_start + 1][2] < swapinstart_time and self.policy[in_start] == 0 and \
+                            self.policy_in[in_start] == 0:
+                        break
+                in_start -= 1
+                if in_start <= out_end:
                     return False
-                if self.tensor_access_list[in_start+1][2] <=swapinstart_time and self.policy[in_start]==0 and self.policy_in[in_start]==0:
-                     break
 
             # 布置策略
-            for i in range(out_start, out_end+1):
+            for i in [out_start, out_end]:
                 if self.swap[i]!=-1 or self.policy[i]!=0:
                     return False
             for i in range(in_start, in_end):
@@ -152,13 +141,13 @@ class capuchin:
             self.policy[out_start] = 1
             self.swap[out_start] = t
 
-            for i in range(out_start + 1, out_end + 1):
-                self.policy[i] = 3
+            # for i in range(out_start + 1, out_end + 1):
+            #     self.policy[i] = 3
 
             self.policy[in_start] = 2
             self.swap[in_start] = t
-            for i in range(in_start + 1, in_end):
-                self.policy[i] = 4
+            # for i in range(in_start + 1, in_end):
+            #     self.policy[i] = 4
             self.policy_in[in_end] = 5
             if self.tensor_access_list[in_end][0] != t:
                 print("in问题")
@@ -217,11 +206,11 @@ class capuchin:
                     if cand.rp_time != 0:
                         cand.MSPS = cand.memory / cand.rp_time
 
-        def check_whether_used_by_rep_as_input(index):
-            for rp in self.recomps:
-                if rp in self.topo_order[index].nodes_use_self_as_input:
-                    return True
-            return False
+        # def check_whether_used_by_rep_as_input(index):
+        #     for rp in self.recomps:
+        #         if rp in self.topo_order[index].nodes_use_self_as_input:
+        #             return True
+        #     return False
 
         identifyAndSortCandidates()
         Candidates = list(self.candidates)
@@ -241,8 +230,8 @@ class capuchin:
                 if (s_overhead <= r_overhead or re_id == -1) and self.prior_policy[
                     self.topo_order[t[0]].use_access_id[t[2]]] == 0:
                     self.prior_policy[self.topo_order[t[0]].use_access_id[t[2]]] = 1
-                    if t[2] != len(self.topo_order[t[0]].FT) - 1:
-                        self.prior_policy_in[self.topo_order[t[0]].use_access_id[t[2] + 1]] = 2
+                    # if t[2] != len(self.topo_order[t[0]].FT) - 1:
+                    #     self.prior_policy_in[self.topo_order[t[0]].use_access_id[t[2] + 1]] = 2
                         # 从候选移除
                     self.memory_tosaving -= self.topo_order[t[0]].memory
                     self.candidates.remove((t[0], self.topo_order[t[0]].FT[t[2]], t[2]))

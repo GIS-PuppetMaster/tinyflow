@@ -181,6 +181,25 @@ class DenseNet121(Process):
         self.f7.close()
         if self.type==1:
             print(
+                f'abnormal_passive_evict0:{t.abnormal_passive_cost0}',
+                file=self.f8)
+            print(
+                f'abnormal_passive_evict1:{t.abnormal_passive_cost1}',
+                file=self.f8)
+            print(
+                f'abnormal_passive_evict2:{t.abnormal_passive_cost2}',
+                file=self.f8)
+            print(
+                f'abnormal_passive_evict3:{t.abnormal_passive_cost3}',
+                file=self.f8)
+            print(
+                f'abnormal_passive_evict4:{t.abnormal_passive_cost4}',
+                file=self.f8)
+            print(
+                f'abnormal_passive_cost_compute:{t.abnormal_passive_cost_compute}',
+                file=self.f8)
+            print('', file=self.f8)
+            print(
                 f'abnormal_passive_evict:{t.abnormal_passive_cost0 + t.abnormal_passive_cost1 + t.abnormal_passive_cost2 + t.abnormal_passive_cost3 + t.abnormal_passive_cost4 + t.abnormal_passive_cost_compute}',
                 file=self.f8)
             print(f'recompute_cost:{t.recompute_cost}', file=self.f8)
