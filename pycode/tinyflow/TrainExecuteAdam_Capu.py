@@ -58,31 +58,35 @@ class MemoryManager(threading.Thread):
             global topo_order
 
             if move_to_gpu == 0:
-                node_ndarray = index_to_gpu_map[node_index]
-                if node_ndarray is None:
-                    continue
-                node_ndarray.copyto(index_to_cpu_map[node_index], self.cudaSwapStream)
-                index_to_cpu_flag[node_index] = True
-                # index_to_gpu_map[node_index].free_gpu()
-                index_to_gpu_map[node_index] = None
-                topo_order[node_index].array_status = 0
+                if topo_order[node_index].array_status!=0:
+                    node_ndarray = index_to_gpu_map[node_index]
+                    if node_ndarray is None:
+                        continue
+                    ndarray_cpu = index_to_cpu_map[node_index]
+                    if ndarray_cpu.data_id != node_ndarray.data_id:
+                        node_ndarray.copyto(index_to_cpu_map[node_index], self.cudaSwapStream)
+                    index_to_cpu_flag[node_index] = True
+                    # index_to_gpu_map[node_index].free_gpu()
+                    index_to_gpu_map[node_index] = None
+                    topo_order[node_index].array_status = 0
 
             else:
-                swap_in_flag = True
-                swap_in_id = node_index
-                node_ndarray = index_to_cpu_map[node_index]
-                # time1 = datetime.datetime.now()
-                node_ndarray_new = ndarray.empty(node_ndarray.shape, self.gpu_ctx, maxmem=maxmem,
-                                                 nowmem=topo_order[node_index].memory)
-                # time2 = datetime.datetime.now()
-                if isinstance(node_ndarray_new, int):
-                    swap_in_flag = False
-                else:
-                    if index_to_gpu_map[node_index] is None:
-                        node_ndarray.copyto(node_ndarray_new, self.cudaSwapStream)
-                        index_to_gpu_map[node_index] = node_ndarray_new
-                        index_to_cpu_flag[node_index] = False
-                        topo_order[node_index].array_status = 1
+                if topo_order[node_index].array_status!=1:
+                    swap_in_flag = True
+                    swap_in_id = node_index
+                    node_ndarray = index_to_cpu_map[node_index]
+                    # time1 = datetime.datetime.now()
+                    node_ndarray_new = ndarray.empty(node_ndarray.shape, self.gpu_ctx, maxmem=maxmem,
+                                                     nowmem=topo_order[node_index].memory)
+                    # time2 = datetime.datetime.now()
+                    if isinstance(node_ndarray_new, int):
+                        swap_in_flag = False
+                    else:
+                        if index_to_gpu_map[node_index] is None:
+                            node_ndarray.copyto(node_ndarray_new, self.cudaSwapStream)
+                            index_to_gpu_map[node_index] = node_ndarray_new
+                            index_to_cpu_flag[node_index] = False
+                            topo_order[node_index].array_status = 1
                     # else:
                     #     print("swap in 和 passive import 重合")
 
@@ -226,13 +230,6 @@ class TrainExecutor(object):
         schedule = self.schedule
         if self.isfirstrun == 0:
             stime = time.time()
-            # nvmlInit()
-            # handle = nvmlDeviceGetHandleByIndex(0)
-            # PCIE_bandwidth = nvmlDeviceGetPcieThroughput(handle, NVML_PCIE_UTIL_COUNT)  # KB/s
-            #
-            # PCIE_bandwidth *= 1024
-            # pciin, pciout = PCIE_bandwidth, PCIE_bandwidth
-            # print(f'PCIE_bandwidth:{PCIE_bandwidth}')
             # Bytes/second
             if schedule:
                 pciin, pciout = gpu_op.testPcie()
@@ -348,7 +345,7 @@ class TrainExecutor(object):
                                 need_tomem += dnode.memory
                                 ret -= dnode.memory
                                 if (ret < 0):
-                                    self.arrive_to_cpu(dnode)
+                                    # self.arrive_to_cpu(dnode)
                                     count = i
                                     break
                         # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
@@ -365,7 +362,7 @@ class TrainExecutor(object):
                             if self.isevict(dnode, node):
                                 self.tensor_evict(dnode)
                                 need_tomem += dnode.memory
-                                self.arrive_to_cpu(dnode)
+                                # self.arrive_to_cpu(dnode)
                         st2 = time.time()-st2
                     # # 此时ret为ndarray
                     # # value都存在self.node_to_arr_map
@@ -396,7 +393,7 @@ class TrainExecutor(object):
                                 memorytoSaving -= dnode.memory
                                 need_tomem += dnode.memory
                                 if (memorytoSaving < 0):
-                                    self.arrive_to_cpu(dnode)
+                                    # self.arrive_to_cpu(dnode)
                                     count = i
                                     break
                         # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
@@ -413,7 +410,7 @@ class TrainExecutor(object):
                             if self.isevict(dnode, node):
                                 need_tomem += dnode.memory
                                 self.tensor_evict(dnode)
-                                self.arrive_to_cpu(dnode)
+                                # self.arrive_to_cpu(dnode)
                 # 此点被计算过了
                 # node_computed.add(node)
                 if schedule:
@@ -476,50 +473,10 @@ class TrainExecutor(object):
 
                 # 如果node是变量，不用管
                 if node in self.Variable_node_list:
-                    # if index_to_gpu_map[idx] != None or not schedule:
-                    #     continue
-                    # else:
-                    #     # 没在GPU中,重新在GPU申请空间
-                    #     ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx, maxmem=self.maxmem,
-                    #                         nowmem=node.memory)
-                    #     st = time.time()
-                    #     if isinstance(ret, int):
-                    #         ret, _ = self.tensors_evict(ret, node, node, idx, passive=True)
-                    #         # print(f'abnormal passive, idx:{idx}, num:1')
-                    #         abnormal_passive_cost1 += time.time() - st
-                    #     # 此时ret为ndarray
-                    #     # value都存在self.node_to_arr_map
-                    #     # print(f'passively swap in tensor {idx} on iter {idx}, num:1')
-                    #     index_to_cpu_map[idx].copyto(ret, self.cudaStream)
-                    #     index_to_gpu_map[idx] = ret
-                    #     if schedule:
-                    #         node.array_status = 1
-                    #         index_to_cpu_flag[node.index] = False
-                    # node_computed.add(node)
                     continue
 
                 # 如果node是adam要用的变量，不用管
                 if node in self.mv:
-                    # if index_to_gpu_map[node.index] != None or not schedule:
-                    #     continue
-                    # else:
-                    #     # 没在GPU中,重新在GPU申请空间
-                    #     ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx, maxmem=self.maxmem,
-                    #                         nowmem=node.memory)
-                    #     st = time.time()
-                    #     if isinstance(ret, int):
-                    #         ret, _ = self.tensors_evict(ret, node, node, idx, passive=True)
-                    #         # print(f'abnormal passive, idx:{idx}, num:2')
-                    #         abnormal_passive_cost2 += time.time() - st
-                    #     # 此时ret为ndarray
-                    #     # value都存在self.node_to_arr_map
-                    #     # print(f'passively swap in tensor {idx} on iter {idx}, num:2')
-                    #     index_to_cpu_map[idx].copyto(ret, self.cudaStream)
-                    #     index_to_gpu_map[idx] = ret
-                    #     if schedule:
-                    #         node.array_status = 1
-                    #         index_to_cpu_flag[idx] = False
-                    # node_computed.add(node)
                     continue
 
                 # 不是sgdop的中间点
@@ -599,7 +556,7 @@ class TrainExecutor(object):
                                 self.tensor_evict(dnode)
                                 memorytoSaving -= dnode.memory
                                 if (memorytoSaving < 0):
-                                    self.arrive_to_cpu(dnode)
+                                    # self.arrive_to_cpu(dnode)
                                     count = i
                                     break
                         while True:
@@ -612,15 +569,13 @@ class TrainExecutor(object):
                             dnode = self.topo_order[count]
                             if self.isevict(dnode, node):
                                 self.tensor_evict(dnode)
-                                self.arrive_to_cpu(dnode)
+                                # self.arrive_to_cpu(dnode)
                         self.abnormal_passive_cost_compute += time.time() - st
-                for input_node in inputs_evict_after_compute:
-                    self.tensor_evict(input_node, parallel=True)
-                for input_node in inputs_free_after_compute:
-                    self.tensor_free(input_node)
-                del input_vals
-                del inputs_free_after_compute
-                del inputs_evict_after_compute
+                if schedule:
+                    for input_node in inputs_evict_after_compute:
+                        self.tensor_evict(input_node, parallel=True)
+                    for input_node in inputs_free_after_compute:
+                        self.tensor_free(input_node)
                 # gc.collect()
                 # 此点被计算过了
                 # node_computed.add(node)
@@ -826,13 +781,15 @@ class TrainExecutor(object):
             node_index = access_node.index
             node_ndarray = index_to_gpu_map[node_index]
             if node_ndarray is not None:
-                node_ndarray.copyto(index_to_cpu_map[node_index], self.cudaStream)
+                if index_to_cpu_map[node_index].data_id !=node_ndarray.data_id:
+                    node_ndarray.copyto(index_to_cpu_map[node_index], self.cudaStream)
                 index_to_cpu_flag[node_index] = True
                 # index_to_gpu_map[node_index].free_gpu()
                 index_to_gpu_map[node_index] = None
                 topo_order[node_index].array_status = 0
 
     def tensor_free(self, access_node):
+        # index_to_gpu_map[access_node.index].free_gpu()
         index_to_gpu_map[access_node.index] = None
         access_node.array_status = 2
 
@@ -848,7 +805,7 @@ class TrainExecutor(object):
                 ret -= dnode.memory
                 saved_memory += dnode.memory
                 if (ret < 0):
-                    self.arrive_to_cpu(dnode)
+                    # self.arrive_to_cpu(dnode)
                     count = i
                     break
         # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
@@ -868,7 +825,7 @@ class TrainExecutor(object):
                 saved_memory += dnode.memory
                 # if passive:
                 #     print(f'passively evict tensor:{count} on iter {idx}')
-                self.arrive_to_cpu(dnode)
+                # self.arrive_to_cpu(dnode)
         return ret, saved_memory
 
     def tensors_evict_rep(self, ret, n, node1, node2, feed=None):

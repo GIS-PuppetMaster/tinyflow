@@ -1,6 +1,8 @@
 from __future__ import absolute_import
 
+import threading
 import time
+import random
 
 from ._base import _LIB, check_call, c_array
 import ctypes
@@ -75,7 +77,7 @@ class NDArray(object):
     Strictly this is only an Array Container(a buffer object)
     No arthimetic operations are defined.
     """
-    __slots__ = ["handle","is_freed"]
+    __slots__ = ["handle","is_freed","data_id","lock"]
 
     # pylint: disable=no-member
     def __init__(self, handle):
@@ -86,7 +88,9 @@ class NDArray(object):
             the handle to the underlying C++ DLArray
         """
         self.handle = handle
+        self.data_id = random.random()*time.time()
         self.is_freed = False
+        self.lock = threading.Lock()
 
     def __del__(self):
         if self.is_freed:
@@ -142,6 +146,7 @@ class NDArray(object):
         if source_array.shape != self.shape:
             raise ValueError('array shape do not match the shape of NDArray')
         source_arr, shape = NDArray._numpyasarray(source_array)
+        self.data_id = random.random()*time.time()
         check_call(_LIB.DLArrayCopyFromTo(
             ctypes.byref(source_arr), self.handle, None))
         # de-allocate shape until now
@@ -188,7 +193,7 @@ class NDArray(object):
             if isinstance(target, int):
                 return target
         if isinstance(target, NDArray):
-
+            target.data_id = self.data_id
             check_call(_LIB.DLArrayCopyFromTo(
                 self.handle, target.handle, cudaStream))
 
@@ -208,7 +213,7 @@ class NDArray(object):
             if isinstance(target, int):
                 return target
         if isinstance(target, NDArray):
-
+            target.data_id = self.data_id
             check_call(_LIB.DLArrayCopyFromTo(
                 self.handle, target.handle, None))
 

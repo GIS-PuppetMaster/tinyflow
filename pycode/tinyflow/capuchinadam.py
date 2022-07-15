@@ -50,8 +50,8 @@ class capuchin:
                 self.policy[instart_id] = 2
                 self.swap[instart_id] = swap_node_id
                 self.swap[id] = -1
-                for i in range(instart_id + 1, id + 1):
-                    self.policy[i] = 4
+                # for i in range(instart_id + 1, id + 1):
+                #     self.policy[i] = 4
 
     def hybrid_policy(self, memory_tosaving, end_time, peakaccess_idx):
         self.policy = [0] * len(self.tensor_access_list)
@@ -69,7 +69,7 @@ class capuchin:
                     # 遍历所有access
                     for i in range(0,node.access_count):
                         # 如果下一次access出现在peak时
-                        if i+1 in node.peakaccess:
+                        if i in node.peakaccess or i+1 in node.peakaccess:
                             # (目标node_index, 本次access的FT, 本次access_index)
                             self.candidates.append((node.index,node.FT[i],i))
 
